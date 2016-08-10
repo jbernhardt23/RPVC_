@@ -8,5 +8,14 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"></fragment>
 
+    <EditText
+        android:layout_width="166dp"
+        android:layout_height="wrap_content"
+        android:ems="10"
+        android:id="@+id/sensorRead"
+        android:inputType="none"
+        android:editable="false"
+        android:hint="Reading..." />
+
 
 </FrameLayout>

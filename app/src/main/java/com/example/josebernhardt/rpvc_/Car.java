@@ -6,22 +6,37 @@ package com.example.josebernhardt.rpvc_;
 public class Car {
 
     private double lat, lon, currentSpeed;
-    private boolean inicialStatus, frontSensor, backSensor, carCrashed;
-    private int carId;
+    private boolean timer = false;
+    private boolean  frontSensor, backSensor, carCrashed;
+    private String carId;
 
-    public Car(double lat, double lon, double currentSpeed, int carId) {
+
+    private float distanceBetween;
+
+    public Car(double lat, double lon, String carId, boolean timer) {
         this.lat = lat;
         this.lon = lon;
-        this.currentSpeed = currentSpeed;
         this.carId = carId;
+        this.timer = timer;
     }
 
-    public boolean isInicialStatus() {
-        return inicialStatus;
+    public Car(){
+
     }
 
-    public void setInicialStatus(boolean inicialStatus) {
-        this.inicialStatus = inicialStatus;
+    public float getDistanceBetween() {
+        return distanceBetween;
+    }
+
+    public void setDistanceBetween(float distanceBetween) {
+        this.distanceBetween = distanceBetween;
+    }
+    public boolean isTimer() {
+        return timer;
+    }
+
+    public void setInicialTimer(boolean timer) {
+        this.timer = timer;
     }
 
     public double getLat() {
@@ -72,20 +87,18 @@ public class Car {
         this.carCrashed = carCrashed;
     }
 
-    public int getCarId() {
+    public String getCarId() {
         return carId;
     }
 
-    public void setCarId(int carId) {
+    public void setCarId(String carId) {
         this.carId = carId;
     }
 
     @Override
     public String toString() {
-        return "Car{" +
-                "lat=" + lat +
-                ", lon=" + lon +
-                '}';
+        return  lat +
+                ","+ lon;
     }
 
 }

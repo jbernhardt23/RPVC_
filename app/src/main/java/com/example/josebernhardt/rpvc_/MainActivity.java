@@ -1,7 +1,12 @@
 package com.example.josebernhardt.rpvc_;
 
 import android.app.FragmentManager;
+
+import android.app.Notification;
+import android.graphics.Color;
 import android.app.FragmentTransaction;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -11,6 +16,11 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.Color;
+import android.location.Location;
+import android.media.Ringtone;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -21,21 +31,27 @@ import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.app.NotificationCompat;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.Toast;
 
+
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.UUID;
+
 
 
 
@@ -45,27 +61,38 @@ public class MainActivity extends AppCompatActivity
     public static List<Car> CarList = new ArrayList<>();
     public double latitude, longitude;
     double lat, lon, carSpeed;
-    int carId;
+    private String carId;
     private boolean flagCommand = false;
     private boolean flagMap = false;
     private boolean flagBT = false;
     private boolean flagConnected = false;
     private boolean flag2 = false;
     public static boolean writeFlag = false;
-    NavigationView navigationView;
-    BluetoothAdapter mBluetoothAdapter;
-    BluetoothDevice mDevice;
+    private NavigationView navigationView;
+    private BluetoothAdapter mBluetoothAdapter;
+    private BluetoothDevice mDevice;
+    Intent enableBtIntent;
     Thread mConnectThread;
     Thread mConnectedThread;
+    Thread mSendData;
     ProgressDialog dialog;
     ProgressDialog dialog1;
     Button testBtn;
+    int count = 0;
+    Timer timer;
+    String CARD_ID = "Xbee1";
+    Snackbar snackbar2;
+    EditText editText;
 
+    GmapFragment map = new GmapFragment();
+    CommandCenter command = new CommandCenter();
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        editText = (EditText)findViewById(R.id.sensorRead);
 
         //BT filters to manage connection status
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_ACL_DISCONNECTED);
@@ -98,33 +125,65 @@ public class MainActivity extends AppCompatActivity
         testBtn = (Button) findViewById(R.id.test);
 
         //BT object
-                mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         if (mBluetoothAdapter == null) {
             Toast.makeText(this, "Bluetooth not supported",
-             Toast.LENGTH_LONG).show();
+                    Toast.LENGTH_LONG).show();
         }
 
         //Checking if BT is on
         if (!mBluetoothAdapter.isEnabled()) {
-            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableBtIntent, 1);
         }
-        //Sending test data
-        addCar(16, -45.58, 45, 1);
-        addCar(16.58, -45.58, 45, 2);
-        addCar(16.58, -45.58, 45, 3);
-        addCar(16, -45.58, 45, 4);
-        addCar(16.58, -45.58, 45, 5);
-        addCar(16.58, -45.58, 45, 6);
-        addCar(16, -45.58, 45, 7);
-        addCar(16.58, -45.58, 45, 8);
-        addCar(latitude, longitude, 45, 9);
+        setTimer(7);
 
 
     }
-    public void showText(String text){
-        Toast.makeText(this, text,
-                Toast.LENGTH_LONG).show();
+
+    public void setTimer(int seconds) {
+        timer = new Timer();
+        timer.schedule(new RemindTask(), seconds * 1000);
+
+
+    }
+
+    public class RemindTask extends TimerTask {
+
+
+        public void run() {
+            if (!CarList.isEmpty()) {
+                for (int i = 0; i < CarList.size(); i++) {
+                    if (!CarList.get(i).isTimer()) {
+                        NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+                        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(MainActivity.this);
+                        mBuilder.setSmallIcon(R.drawable.car_icon);
+                        mBuilder.setContentTitle("Car out of range");
+                        mBuilder.setPriority(Notification.PRIORITY_MAX);
+                        mBuilder.setContentText(CarList.get(i).getCarId()
+                                + " has left network");
+                        notificationManager.notify(0, mBuilder.build());
+                        CarList.remove(i);
+                    }
+                }
+
+                for (int i = 0; i < CarList.size(); i++) {
+                    CarList.get(i).setInicialTimer(false);
+                }
+            }
+            timer.cancel();
+            setTimer(7);
+
+
+        }
+    }
+
+
+    public void showText(String text) {
+        count++;
+        // Toast.makeText(this, text,
+        //     Toast.LENGTH_SHORT).show();
+
     }
 
     //Handler to get DATA and use it on the UI
@@ -132,36 +191,128 @@ public class MainActivity extends AppCompatActivity
         @Override
         public void handleMessage(Message msg) {
             byte[] writeBuf = (byte[]) msg.obj;
-            int begin = (int)msg.arg1;
-            int end = (int)msg.arg2;
+            int begin = (int) msg.arg1;
+            int end = (int) msg.arg2;
+            Car myCar;
+            editText = (EditText)findViewById(R.id.sensorRead);
+           // editText.setEnabled(false);
 
-            switch(msg.what) {
+            NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(MainActivity.this);
+            mBuilder.setSmallIcon(R.drawable.car_icon);
+            mBuilder.setSound(Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.censor));
+            String carID;
+            String sensorReady ="";
+            String temp = "empty";
+
+
+            switch (msg.what) {
                 case 1:
+                    lat = 0;
+                    lon = 0;
+
+
                     String writeMessage = new String(writeBuf);
                     writeMessage = writeMessage.substring(begin, end);
-                    showText(writeMessage);
+
+                    try {
+                        myCar = GmapFragment.myCar;
+
+                        String[] data = writeMessage.split(",");
+                        carID = data[0];
+                        String tempLat = data[1];
+                        String tempLon = data[2];
+                        try {
+                            sensorReady = data[3];
+                        }catch(Exception e){
+
+                        }
+                        editText.setText("Sensor: " + sensorReady);
+
+                        lat = Double.parseDouble(tempLat);
+                        lon = Double.parseDouble(tempLon);
+
+                        if (!CarList.isEmpty()) {
+                            for (int i = 0; i < CarList.size(); i++) {
+                                if (CarList.get(i).getCarId().equals(carID)) {
+                                    CarList.get(i).setLon(lon);
+                                    CarList.get(i).setLat(lat);
+                                    CarList.get(i).setInicialTimer(true);
+
+                                    //Compare if current car is close to my Car
+                                    Location nextCarPosition = new Location("Point A");
+                                    nextCarPosition.setLatitude(lat);
+                                    nextCarPosition.setLongitude(lon);
+
+                                    Location myCarsPosition = new Location("Point B");
+                                    myCarsPosition.setLatitude(myCar.getLat());
+                                    myCarsPosition.setLongitude(myCar.getLon());
+
+                                    float distanceBetween = myCarsPosition.distanceTo(nextCarPosition);
+
+                                   if (distanceBetween < 15 || distanceBetween < 20) {
+
+                                        mBuilder.setContentTitle("Proximity Alert!");
+                                        mBuilder.setPriority(Notification.PRIORITY_MAX);
+                                        mBuilder.setContentText(CarList.get(i).getCarId()
+                                                + " is getting too close");
+                                        notificationManager.notify(0, mBuilder.build());
+                                        CarList.get(i).setDistanceBetween(distanceBetween);
+                                        distanceBetween = 0;
+                                        //CarList.get(i).setDistanceBetween(distanceBetween);
+                                    }
+
+                                    break;
+                                } else if (CarList.size() - 1 == i && carId != CARD_ID) {
+                                    Car newCar = new Car(lat, lon, carID, false);
+                                    CarList.add(newCar);
+                                    System.out.println("------------------------------Carro agrergado------*----------------------");
+
+
+                                }
+                            }
+                        } else if (carID.contains("Xbee")) {
+                            Car newCar = new Car(lat, lon, carID, false);
+                            CarList.add(newCar);
+                            mBuilder.setContentTitle("New car");
+                            mBuilder.setPriority(Notification.PRIORITY_MAX);
+                            mBuilder.setContentText("Car: " + carID
+                                    + " has joined!");
+                            notificationManager.notify(0, mBuilder.build());
+                            System.out.println("------------------------------Carro agrergado------*----------------------");
+
+                        }
+                        showText(writeMessage);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                     break;
+
             }
         }
     };
 
+
+
+
     //Displaying information of thread status
-    Handler displayHandler = new Handler()
-    {
-        public void handleMessage(Message message)
-        {
+    Handler displayHandler = new Handler() {
+        public void handleMessage(Message message) {
             switch (message.what) {
                 case 1:
-                Snackbar snackbar = Snackbar.make(navigationView, "Bluetooth Ready, Device Paired: " +
-                        mDevice.getName(),
-                        Snackbar.LENGTH_LONG);
-                snackbar.show();
+                    Snackbar snackbar = Snackbar.make(navigationView, "Bluetooth Ready, Device Paired: " +
+                                    mDevice.getName(),
+                            Snackbar.LENGTH_LONG);
+                    snackbar.show();
                     break;
                 case 2:
-                    Snackbar snackbar2 = Snackbar.make(navigationView, "Connection successful!", Snackbar.LENGTH_LONG);
-                snackbar2.show();
+                    snackbar2 = Snackbar.make(navigationView, "You're Online!", Snackbar.LENGTH_INDEFINITE);
+                    snackbar2.setActionTextColor(Color.GREEN);
+                    View  snackbarView = snackbar2.getView();
+                    snackbarView.setBackgroundColor(Color.parseColor("#1B5E20"));
+                    snackbar2.show();
+                    break;
 
-                break;
             }
         }
     };
@@ -192,25 +343,30 @@ public class MainActivity extends AppCompatActivity
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
-          //  BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                 if (BluetoothDevice.ACTION_ACL_DISCONNECTED.equals(action)) {
-                Snackbar snackbar = Snackbar.make(navigationView, "Bluetooth connection lost! ",
-                        Snackbar.LENGTH_LONG);
-                snackbar.show();
-                flagBT = false;
-                mConnectedThread.interrupt();
+            //  BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+            if (BluetoothDevice.ACTION_ACL_DISCONNECTED.equals(action)) {
+                if (!flagBT) {
+                    enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                    startActivityForResult(enableBtIntent, 1);
+                } else {
+                    Snackbar snackbar = Snackbar.make(navigationView, "Bluetooth connection lost! ",
+                            Snackbar.LENGTH_LONG);
+                    snackbar.show();
+                    flagBT = false;
+                    mConnectedThread.interrupt();
+                    mSendData.interrupt();
+                    snackbar2.dismiss();
+                }
             }
         }
     };
 
-    //Thread for the recieving and sending part
+    //Thread for the recieving
     private class ConnectedThread extends Thread {
 
-        private  BluetoothSocket mmSocket;
-        private  InputStream mmInStream ;
-        private  OutputStream mmOutStream;
-        String data = "*";
-        String endData = "n";
+        private BluetoothSocket mmSocket;
+        private InputStream mmInStream;
+        private OutputStream mmOutStream;
 
         public ConnectedThread(BluetoothSocket socket) {
 
@@ -220,7 +376,8 @@ public class MainActivity extends AppCompatActivity
             try {
                 tmpIn = socket.getInputStream();
                 tmpOut = socket.getOutputStream();
-            } catch (IOException e) { }
+            } catch (IOException e) {
+            }
             mmInStream = tmpIn;
             mmOutStream = tmpOut;
 
@@ -228,55 +385,121 @@ public class MainActivity extends AppCompatActivity
 
         public void run() {
 
-                byte[] buffer = new byte[1024];
-                int begin = 0;
-                int bytes = 0;
-                //Dismiss dialog called on the drawer
-                dialog.dismiss();
-                displayHandler.obtainMessage(2).sendToTarget();
-
-                testBtn.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        write(data.getBytes());
-                        write(CarList.get(0).toString().getBytes());
-                        CarList.remove(CarList.size() - 1);
-
-                    }
-                });
+            byte[] buffer = new byte[1024];
+            int begin = 0;
+            int bytes = 0;
+            //Dismiss dialog called on the drawer
+            dialog.dismiss();
+            displayHandler.obtainMessage(2).sendToTarget();
 
 
-                while (true && !isInterrupted()) {
-                    try {
+            while (true && !isInterrupted()) {
 
-                        bytes += mmInStream.read(buffer, bytes, buffer.length - bytes);
-                        for (int i = begin; i < bytes; i++) {
-                            if (buffer[i] == "#".getBytes()[0]) {
-                                mHandler.obtainMessage(1, begin, i, buffer).sendToTarget();
-                                begin = i + 1;
-                                if (i == bytes - 1) {
-                                    bytes = 0;
-                                    begin = 0;
-                                    write(endData.getBytes());
-                                }
+                try {
+
+                    bytes += mmInStream.read(buffer, bytes, buffer.length - bytes);
+                    for (int i = begin; i < bytes; i++) {
+                        if (buffer[i] == "#".getBytes()[0]) {
+                            mHandler.obtainMessage(1, begin, i, buffer).sendToTarget();
+                            begin = i + 1;
+                            if (i == bytes - 1) {
+                                bytes = 0;
+                                begin = 0;
                             }
                         }
-                    } catch (IOException e) {
-                        break;
                     }
+
+
+                } catch (IOException e) {
+                    break;
                 }
+
+            }
+
         }
+
         public void write(byte[] bytes) {
             try {
 
                 mmOutStream.write(bytes);
 
-            } catch (IOException e) { }
+            } catch (IOException e) {
+            }
         }
+
         public void cancel() {
             try {
                 mmSocket.close();
-            } catch (IOException e) { }
+            } catch (IOException e) {
+            }
+        }
+    }
+
+
+    //Thread sending part
+    private class SendData extends Thread {
+
+        private BluetoothSocket mmSocket;
+        private OutputStream mmOutStream;
+
+        public SendData(BluetoothSocket socket) {
+
+            mmSocket = socket;
+            OutputStream tmpOut = null;
+            try {
+                tmpOut = socket.getOutputStream();
+            } catch (IOException e) {
+            }
+            mmOutStream = tmpOut;
+
+        }
+
+        public void run() {
+            Car myCar;
+
+
+            while (true && !isInterrupted()) {
+
+
+                myCar = GmapFragment.myCar;
+                if (myCar.getLat() != 0 && myCar.getLon() != 0 && myCar != null) {
+                    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                    try {
+                        outputStream.write("#".getBytes());
+                        outputStream.write(myCar.getCarId().getBytes());
+                        outputStream.write(",".getBytes());
+                        outputStream.write(myCar.toString().getBytes());
+                        byte dataSend[] = outputStream.toByteArray();
+                        String test = dataSend.toString();
+                        write(dataSend);
+
+                    } catch (IOException e) {
+                        e.getMessage();
+                    }
+
+                }
+                try {
+                    Thread.sleep(800);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        public void write(byte[] bytes) {
+            try {
+
+                mmOutStream.write(bytes);
+
+            } catch (IOException e) {
+            }
+        }
+
+        public void cancel() {
+            try {
+                mmSocket.close();
+            } catch (IOException e) {
+            }
         }
     }
 
@@ -293,45 +516,41 @@ public class MainActivity extends AppCompatActivity
 
             try {
                 tmp = device.createRfcommSocketToServiceRecord(MY_UUID);
-            } catch (IOException e) { }
+            } catch (IOException e) {
+            }
             mmSocket = tmp;
 
 
         }
+
         public void run() {
 
             mBluetoothAdapter.cancelDiscovery();
-                try {
-                    mmSocket.connect();
-                    flagBT = true;
-                    mConnectedThread = new ConnectedThread(mmSocket);
-                    dialog1.dismiss();
-                    displayHandler.obtainMessage(1).sendToTarget();
+            try {
+                mmSocket.connect();
+                flagBT = true;
+                mConnectedThread = new ConnectedThread(mmSocket);
+                mSendData = new SendData(mmSocket);
+                dialog1.dismiss();
+                displayHandler.obtainMessage(1).sendToTarget();
 
-                } catch (IOException connectException) {
-                    try {
-                        pdCanceller.postDelayed(progressRunnable, 5000);
-                        mmSocket.close();
-                    } catch (IOException closeException) {}
-                    return;
+            } catch (IOException connectException) {
+                try {
+                    pdCanceller.postDelayed(progressRunnable, 5000);
+
+                    mmSocket.close();
+                } catch (IOException closeException) {
                 }
+                return;
+            }
         }
 
         public void cancel() {
             try {
                 mmSocket.close();
-            } catch (IOException e) { }
+            } catch (IOException e) {
+            }
         }
-
-
-    }
-
-    //AddCar method
-    public void addCar(double lat, double lon, double carSpeed, int carId ){
-
-
-        Car car = new Car(lat,lon,carSpeed,carId);
-        CarList.add(car);
 
 
     }
@@ -347,17 +566,19 @@ public class MainActivity extends AppCompatActivity
         } else {
 
             //Checking if we have Map on the backStack
-            if (getFragmentManager().findFragmentByTag("MapFragment") != null){
+            if (getFragmentManager().findFragmentByTag("MapFragment") != null) {
                 //Marking items from the Navigation as selected
                 navigationView.getMenu().getItem(1).setChecked(false);
                 navigationView.getMenu().getItem(0).setChecked(true);
                 //Getting de last fragment
                 getFragmentManager().popBackStack();
                 flagCommand = false;
-            }else {
+            } else {
                 super.onBackPressed();
             }
         }
+
+
     }
 
     @Override
@@ -387,6 +608,9 @@ public class MainActivity extends AppCompatActivity
     public boolean onNavigationItemSelected(MenuItem item) {
 
         android.app.FragmentManager fm = getFragmentManager();
+        FragmentTransaction transaction = fm.beginTransaction();
+        ;
+
 
         // Handle navigation view item clicks here.
         int id = item.getItemId();
@@ -397,7 +621,9 @@ public class MainActivity extends AppCompatActivity
             //Verifying if we have the Map on the BackStack to call it
             if (getFragmentManager().findFragmentByTag("MapFragment") != null) {
                 getFragmentManager().popBackStack();
+
             }
+
 
         } else if (id == R.id.nav_gallery && flagCommand == false) {
 
@@ -408,35 +634,35 @@ public class MainActivity extends AppCompatActivity
                 getFragmentManager().popBackStackImmediate("CommandFragment", FragmentManager
                         .POP_BACK_STACK_INCLUSIVE);
             }
-
             //Calling Command Center when Drawer touched and saving Map Fragment on the stack
-            FragmentTransaction transaction = fm.beginTransaction();
-            transaction.replace(R.id.content_frame, new CommandCenter());
-            transaction.add(new CommandCenter(), "CommandFragment");
+            //transaction.setCustomAnimations(android.R.animator.fade_in, android.R.animator.fade_out);
+            transaction.replace(R.id.content_frame, command);
+            // transaction.add(command, "CommandFragment");
             transaction.addToBackStack("CommandFragment");
-            transaction.add(new GmapFragment(),"MapFragment");
+            transaction.add(map, "MapFragment");
             transaction.addToBackStack("MapFragment");
             transaction.commit();
 
-        } else if (id == R.id.nav_share ) {
+        } else if (id == R.id.nav_share) {
             //List of devices
             Set<BluetoothDevice> pairedDevices = mBluetoothAdapter.getBondedDevices();
             if (pairedDevices.size() > 0) {
                 for (BluetoothDevice device : pairedDevices) {
-                    if(device.getName().equals("HC-06")) {
+                    if (device.getName().equals("HC-06")) {
                         dialog1 = ProgressDialog.show(MainActivity.this, "", "Establishing connection with " +
-                                "Bluetooth...",true,false);
+                                "Bluetooth...", true, false);
 
                         mDevice = device;
                         mConnectThread = new ConnectThread(mDevice);
                         mConnectThread.start();
 
+
                     }
                 }
 
-            }else{
+            } else {
                 AlertDialog alertDialog = new AlertDialog.Builder(MainActivity.this).create();
-                alertDialog.setTitle("Bluetooth Module");
+                alertDialog.setTitle("Bluetooth");
                 alertDialog.setMessage("The module has not being paired with your phone or BT is OFF");
                 alertDialog.setButton(AlertDialog.BUTTON_NEGATIVE, "OK",
                         new DialogInterface.OnClickListener() {
@@ -450,12 +676,13 @@ public class MainActivity extends AppCompatActivity
 
         } else if (id == R.id.nav_send) {
             flag2 = true;
-            if(flagBT) {
-                dialog = ProgressDialog.show(MainActivity.this, "", "Initiating ...",true,false);
+            if (flagBT) {
+                dialog = ProgressDialog.show(MainActivity.this, "", "Initiating ...", true, false);
                 mConnectedThread.start();
+                mSendData.start();
                 flag2 = true;
 
-            }else{
+            } else {
 
                 AlertDialog alertDialog = new AlertDialog.Builder(MainActivity.this).create();
                 alertDialog.setTitle("Bluetooth not initiated!");
