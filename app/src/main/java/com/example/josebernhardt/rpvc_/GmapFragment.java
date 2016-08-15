@@ -126,7 +126,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
 
         locationManager = (LocationManager) getActivity().getSystemService(Context.LOCATION_SERVICE);
-        gMap.setMyLocationEnabled(true);
+         gMap.setMyLocationEnabled(true);
         googleMap.animateCamera(CameraUpdateFactory.zoomTo(5));
         googleMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
         googleMap.getUiSettings().setZoomGesturesEnabled(true);
@@ -137,21 +137,23 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
             @Override
             public void onLocationChanged(Location location) {
 
+                if(!gpsProviderReady) {
+                    latitude = location.getLatitude();
+                  //  Toast.makeText(getActivity(), location.getAccuracy() + " " + location.getProvider(), Toast.LENGTH_SHORT).show();
 
-                latitude = location.getLatitude();
-
-                System.out.println(location.getAccuracy() + " "+ location.getProvider());
-                longitude = location.getLongitude();
-                myCar.setCarId(CARD_ID);
-                myCar.setLat(latitude);
-                myCar.setLon(longitude);
-                myCar.setCurrentSpeed(location.getSpeed());
-                LatLng pos = new LatLng(latitude, longitude);
-                marker.setPosition(pos);
-                marker.setSnippet("Car Speed: " + (location.getSpeed() * 3600 / 1000 + "km/h"));
-                //    marker.hideInfoWindow();
-                marker.showInfoWindow();
-                googleMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(latitude, longitude)));
+                    System.out.println(location.getAccuracy() + " " + location.getProvider());
+                    longitude = location.getLongitude();
+                    myCar.setCarId(CARD_ID);
+                    myCar.setLat(latitude);
+                    myCar.setLon(longitude);
+                    myCar.setCurrentSpeed(location.getSpeed());
+                    LatLng pos = new LatLng(latitude, longitude);
+                    marker.setPosition(pos);
+                    marker.setSnippet("Car Speed: " + (location.getSpeed() * 3600 / 1000 + "km/h"));
+                    //    marker.hideInfoWindow();
+                    marker.showInfoWindow();
+                    googleMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(latitude, longitude)));
+                }
 
             }
 
@@ -173,28 +175,32 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
             }
         };
 
-        if(!gpsProviderReady)
          locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, networkListener);
 
         gpsListener = new LocationListener() {
             @Override
             public void onLocationChanged(Location location) {
 
+                if(location.getAccuracy() > 0 && location.getAccuracy() < 20) {
+                    gpsProviderReady = true;
+                    latitude = location.getLatitude();
+                    longitude = location.getLongitude();
+                    Toast.makeText(getActivity(), location.getAccuracy() + " " + location.getProvider(), Toast.LENGTH_SHORT).show();
 
-                latitude = location.getLatitude();
-
-                System.out.println(location.getAccuracy() + " "+ location.getProvider());
-                longitude = location.getLongitude();
-                myCar.setCarId(CARD_ID);
-                myCar.setLat(latitude);
-                myCar.setLon(longitude);
-                myCar.setCurrentSpeed(location.getSpeed());
-                LatLng pos = new LatLng(latitude, longitude);
-                marker.setPosition(pos);
-                marker.setSnippet("Car Speed: " + (location.getSpeed() * 3600 / 1000 + "km/h"));
-                //    marker.hideInfoWindow();
-                marker.showInfoWindow();
-                googleMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(latitude, longitude)));
+                    System.out.println(location.getAccuracy() + " " + location.getProvider());
+                    myCar.setCarId(CARD_ID);
+                    myCar.setLat(latitude);
+                    myCar.setLon(longitude);
+                    myCar.setCurrentSpeed(location.getSpeed());
+                    LatLng pos = new LatLng(latitude, longitude);
+                    marker.setPosition(pos);
+                    marker.setSnippet("Car Speed: " + (location.getSpeed() * 3600 / 1000 + "km/h"));
+                    //    marker.hideInfoWindow();
+                    marker.showInfoWindow();
+                    googleMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(latitude, longitude)));
+                }else{
+                    gpsProviderReady  =false;
+                }
 
             }
 

@@ -24,6 +24,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.NavigationView;
 import android.support.design.widget.Snackbar;
 import android.support.v4.view.GravityCompat;
@@ -59,7 +60,6 @@ public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
     public static List<Car> CarList = new ArrayList<>();
-    public double latitude, longitude;
     double lat, lon, carSpeed;
     private String carId;
     private boolean flagCommand = false;
@@ -75,14 +75,14 @@ public class MainActivity extends AppCompatActivity
     Thread mConnectThread;
     Thread mConnectedThread;
     Thread mSendData;
-    ProgressDialog dialog;
-    ProgressDialog dialog1;
+    ProgressDialog dialog, dialog1, showSensorStatusDialog;
     Button testBtn;
     int count = 0;
     Timer timer;
-    String CARD_ID = "Xbee1";
-    Snackbar snackbar2;
+    private String CARD_ID = "Xbee1";
+    private Snackbar snackbar2, snackbarOffline;
     EditText editText;
+    private TwoProgressDialog twoProgressDialog;
 
     GmapFragment map = new GmapFragment();
     CommandCenter command = new CommandCenter();
@@ -91,6 +91,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
 
         editText = (EditText)findViewById(R.id.sensorRead);
 
@@ -136,7 +137,27 @@ public class MainActivity extends AppCompatActivity
             enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableBtIntent, 1);
         }
+
+        snackbarOffline = Snackbar.make(navigationView, "You're Offline!", Snackbar.LENGTH_INDEFINITE);
+        View  snackbarView = snackbarOffline.getView();
+        snackbarView.setBackgroundColor(Color.parseColor("#b71c1c"));
+        snackbarOffline.show();
+
+
         setTimer(7);
+
+
+    }
+
+    public void floatingAction(View v){
+
+        twoProgressDialog = new TwoProgressDialog(this);
+        twoProgressDialog.setMessage("Sensors Monitor");
+        twoProgressDialog.setCancelable(true);
+        twoProgressDialog.show();
+
+        twoProgressDialog.setProgress(64);
+        twoProgressDialog.setSecondaryProgress(32);
 
 
     }
@@ -302,7 +323,7 @@ public class MainActivity extends AppCompatActivity
                 case 1:
                     Snackbar snackbar = Snackbar.make(navigationView, "Bluetooth Ready, Device Paired: " +
                                     mDevice.getName(),
-                            Snackbar.LENGTH_LONG);
+                            Snackbar.LENGTH_INDEFINITE);
                     snackbar.show();
                     break;
                 case 2:
@@ -338,7 +359,7 @@ public class MainActivity extends AppCompatActivity
 
     Handler pdCanceller = new Handler();
 
-    //The BroadcastReceiver that listens for bluetooth broadcasts
+    //The BroadcastReceiver that listens for bluetooth broadcasts when disconnected
     private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -349,13 +370,16 @@ public class MainActivity extends AppCompatActivity
                     enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
                     startActivityForResult(enableBtIntent, 1);
                 } else {
-                    Snackbar snackbar = Snackbar.make(navigationView, "Bluetooth connection lost! ",
-                            Snackbar.LENGTH_LONG);
+                    Snackbar snackbar = Snackbar.make(navigationView, "Bluetooth connection lost! Re-trying... ",
+                            Snackbar.LENGTH_INDEFINITE);
                     snackbar.show();
                     flagBT = false;
                     mConnectedThread.interrupt();
                     mSendData.interrupt();
                     snackbar2.dismiss();
+                    snackbarOffline.show();
+
+
                 }
             }
         }
@@ -390,6 +414,7 @@ public class MainActivity extends AppCompatActivity
             int bytes = 0;
             //Dismiss dialog called on the drawer
             dialog.dismiss();
+            snackbarOffline.dismiss();
             displayHandler.obtainMessage(2).sendToTarget();
 
 
@@ -533,6 +558,7 @@ public class MainActivity extends AppCompatActivity
                 mSendData = new SendData(mmSocket);
                 dialog1.dismiss();
                 displayHandler.obtainMessage(1).sendToTarget();
+
 
             } catch (IOException connectException) {
                 try {
