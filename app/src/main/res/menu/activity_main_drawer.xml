@@ -9,20 +9,20 @@
         <item
             android:id="@+id/nav_gallery"
             android:icon="@drawable/ic_menu_manage"
-            android:title="Command Center" />
+            android:title="List of Cars" />
 
     </group>
 
-    <item android:title="More...">
+    <item android:title="Set up connection...">
         <menu>
             <item
                 android:id="@+id/nav_share"
                 android:icon="@drawable/ic_menu_share"
-                android:title="Bluetooth" />
+                android:title="Discover Bluetooth" />
             <item
                 android:id="@+id/nav_send"
                 android:icon="@drawable/ic_menu_send"
-                android:title="Start thread..." />
+                android:title="Join network" />
         </menu>
     </item>
 

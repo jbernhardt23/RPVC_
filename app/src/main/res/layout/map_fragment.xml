@@ -1,21 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent" android:layout_height="match_parent">
+
 
     <fragment
         android:id="@+id/map"
         class="com.google.android.gms.maps.MapFragment"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"></fragment>
+        android:layout_height="610dp"></fragment>
 
-    <EditText
-        android:layout_width="166dp"
-        android:layout_height="wrap_content"
-        android:ems="10"
-        android:id="@+id/sensorRead"
-        android:inputType="none"
-        android:editable="false"
-        android:hint="Reading..." />
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <android.support.design.widget.FloatingActionButton
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:clickable="true"
+            android:onClick="floatingAction"
+            android:gravity="center"
+            android:orientation="vertical"
+            app:srcCompat="@drawable/ic_media_route_off_mono_dark"
+            android:id="@+id/floatingActionButton"
+            android:layout_marginBottom="69dp"
+            app:elevation="22dp"
+            app:backgroundTint="@color/common_google_signin_btn_text_light_focused"
+            app:rippleColor="@color/wallet_bright_foreground_holo_light"
+            android:tint="@color/common_google_signin_btn_text_dark_disabled"
+            android:adjustViewBounds="false"
+            android:layout_alignParentBottom="true"
+            android:layout_centerHorizontal="true" />
+
+        <TextView
+            android:text="Sensors"
+            android:textStyle="bold"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/textView2"
+            android:layout_above="@+id/floatingActionButton"
+            android:layout_centerHorizontal="true" />
+
+    </RelativeLayout>
 
 
 </FrameLayout>

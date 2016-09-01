@@ -4,9 +4,9 @@ import android.Manifest;
 import android.app.Fragment;
 import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -16,9 +16,8 @@ import android.os.Handler;
 import android.os.Message;
 import android.provider.Settings;
 import android.support.annotation.Nullable;
-import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
-import android.util.Log;
+import android.support.v7.app.AlertDialog;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -63,8 +62,9 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
     private boolean gpsProviderReady = false;
     private boolean flag = false;
     private Location lastKnownLocation;
-    String CARD_ID = "Xbee1";
-    private static final int TWO_SECONDS = 2;
+    private String CARD_ID = "Xbee1";
+    private AlertDialog.Builder builder;
+    private AlertDialog alertDialog;
 
 
     @Override
@@ -113,9 +113,11 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
 
     @Override
     public void onMapReady(final GoogleMap googleMap) {
-
+        //Set up of dialog for user to be aware of GPS settings to be on
+        builder = new AlertDialog.Builder(getActivity());
         gMap = googleMap;
         permissions();
+
         putCar = new putCar();
         putCar.start();
 
@@ -125,9 +127,8 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
                 .position(pos)
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
 
-        locationManager = (LocationManager) getActivity().getSystemService(Context.LOCATION_SERVICE);
-         gMap.setMyLocationEnabled(true);
-        googleMap.animateCamera(CameraUpdateFactory.zoomTo(5));
+        // locationManager = (LocationManager) getActivity().getSystemService(Context.LOCATION_SERVICE);
+        googleMap.animateCamera(CameraUpdateFactory.zoomTo(15));
         googleMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
         googleMap.getUiSettings().setZoomGesturesEnabled(true);
         googleMap.getUiSettings().setZoomControlsEnabled(true);
@@ -139,7 +140,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
 
                 if(!gpsProviderReady) {
                     latitude = location.getLatitude();
-                  //  Toast.makeText(getActivity(), location.getAccuracy() + " " + location.getProvider(), Toast.LENGTH_SHORT).show();
+                    //  Toast.makeText(getActivity(), location.getAccuracy() + " " + location.getProvider(), Toast.LENGTH_SHORT).show();
 
                     System.out.println(location.getAccuracy() + " " + location.getProvider());
                     longitude = location.getLongitude();
@@ -153,14 +154,37 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
                     //    marker.hideInfoWindow();
                     marker.showInfoWindow();
                     googleMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(latitude, longitude)));
-                }
+                    googleMap.animateCamera(CameraUpdateFactory.zoomTo(15));
+            }
 
             }
 
             @Override
             public void onProviderDisabled(String s) {
-                Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-                startActivity(intent);
+
+
+            /*    AlertDialog alertDialog = new AlertDialog.Builder(getActivity()).create();
+                alertDialog.setTitle("Network provider lost");
+                alertDialog.setMessage("Seems that you have lost connection with your carrier" +
+                        " Please check your signal. ");
+                alertDialog.setCancelable(false);
+                alertDialog.setCanceledOnTouchOutside(false);
+                alertDialog.setButton(AlertDialog.BUTTON_POSITIVE, "OK",
+                        new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int which) {
+                                dialog.dismiss();
+                                Intent intent = new Intent(Settings.ACTION_MANAGE_APPLICATIONS_SETTINGS);
+                                startActivity(intent);
+                            }
+                        });
+                alertDialog.setButton(AlertDialog.BUTTON_NEGATIVE, "Cancel", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                    }
+                });
+                alertDialog.show();*/
+
 
             }
 
@@ -174,8 +198,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
 
             }
         };
-
-         locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, networkListener);
+        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, networkListener);
 
         gpsListener = new LocationListener() {
             @Override
@@ -185,7 +208,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
                     gpsProviderReady = true;
                     latitude = location.getLatitude();
                     longitude = location.getLongitude();
-                    Toast.makeText(getActivity(), location.getAccuracy() + " " + location.getProvider(), Toast.LENGTH_SHORT).show();
+                    //  Toast.makeText(getActivity(), location.getAccuracy() + " " + location.getProvider(), Toast.LENGTH_SHORT).show();
 
                     System.out.println(location.getAccuracy() + " " + location.getProvider());
                     myCar.setCarId(CARD_ID);
@@ -199,15 +222,29 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
                     marker.showInfoWindow();
                     googleMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(latitude, longitude)));
                 }else{
-                    gpsProviderReady  =false;
+                    gpsProviderReady =false;
                 }
 
             }
 
             @Override
             public void onProviderDisabled(String s) {
-                Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-                startActivity(intent);
+
+                AlertDialog alertDialog = new AlertDialog.Builder(getActivity()).create();
+                alertDialog.setTitle("GPS Disable!");
+                alertDialog.setMessage("We require to have GPS enable at all time" +
+                        " to ensure best accuracy possible. ");
+                alertDialog.setCancelable(false);
+                alertDialog.setCanceledOnTouchOutside(false);
+                alertDialog.setButton(AlertDialog.BUTTON_NEGATIVE, "OK",
+                        new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int which) {
+                                dialog.dismiss();
+                                Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                                startActivity(intent);
+                            }
+                        });
+                alertDialog.show();
 
             }
 
@@ -222,7 +259,6 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
             }
         };
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, gpsListener);
-
 
 
     }
@@ -353,7 +389,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
                 }, 10);
 
             } else {
-                gMap.setMyLocationEnabled(true);
+             //   gMap.setMyLocationEnabled(true);
                 locationManager = (LocationManager) getActivity().getSystemService(Context.LOCATION_SERVICE);
 
             }
@@ -375,7 +411,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
             case 10:
 
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    gMap.setMyLocationEnabled(true);
+                 //   gMap.setMyLocationEnabled(true);
                     locationManager = (LocationManager) getActivity().getSystemService(Context.LOCATION_SERVICE);
                     flag = true;
                 }
@@ -383,6 +419,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
         }
 
     }
+
 
 
 }

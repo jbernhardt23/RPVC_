@@ -4,12 +4,6 @@
     android:layout_height="match_parent"
     android:background="@drawable/shape">
 
-    <ImageView
-        android:id="@+id/ListimageView"
-        android:layout_width="90dp"
-        android:layout_height="100dp"
-        android:src="@drawable/car_icon" />
-
     <TextView
         android:id="@+id/CarId"
         android:layout_width="wrap_content"
@@ -18,13 +12,16 @@
         android:layout_marginStart="89dp"
         android:layout_toEndOf="@+id/ListimageView"
         android:text="Card Id Here"
+        android:textStyle="bold"
         android:textAppearance="?android:attr/textAppearanceMedium" />
+
 
     <TextView
         android:id="@+id/carDistanceText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Distance: "
+        android:textStyle="bold"
         android:textAppearance="?android:attr/textAppearanceMedium"
         android:layout_below="@+id/carSpeedText"
         android:layout_toEndOf="@+id/ListimageView" />
@@ -34,17 +31,30 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Medium Text"
+        android:textStyle="bold"
         android:textAppearance="?android:attr/textAppearanceMedium"
-        android:layout_below="@+id/carDistanceText"
-        android:layout_toEndOf="@+id/ListimageView" />
+        android:layout_toEndOf="@+id/ListimageView"
+        android:layout_below="@+id/carDistanceText" />
 
     <TextView
         android:id="@+id/carSpeedText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Car Speed: "
+        android:textStyle="bold"
         android:textAppearance="?android:attr/textAppearanceMedium"
         android:layout_below="@+id/CarId"
         android:layout_toEndOf="@+id/ListimageView" />
+
+    <ImageView
+        android:id="@+id/ListimageView"
+        android:layout_width="90dp"
+        android:layout_height="110dp"
+        android:src="@drawable/car_icon"
+        android:scaleType="centerCrop"
+        android:cropToPadding="false"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentStart="true" />
+
 
 </RelativeLayout>

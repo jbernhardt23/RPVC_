@@ -17,6 +17,7 @@ import android.widget.TextView;
 import java.text.NumberFormat;
 
 /**
+ * Class that handles and creates two dialog process
  * Created by Jose Bernhardt on 8/14/2016.
  */
 

@@ -1,6 +1,7 @@
 package com.example.josebernhardt.rpvc_;
 
 /**
+ * Class that represents a Car object
  * Created by jose on 30/04/16.
  */
 public class Car {

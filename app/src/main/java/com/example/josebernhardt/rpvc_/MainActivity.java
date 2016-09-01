@@ -60,6 +60,7 @@ public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
     public static List<Car> CarList = new ArrayList<>();
+    private Car testCar;
     double lat, lon, carSpeed;
     private String carId;
     private boolean flagCommand = false;
@@ -77,27 +78,31 @@ public class MainActivity extends AppCompatActivity
     Thread mSendData;
     ProgressDialog dialog, dialog1, showSensorStatusDialog;
     Button testBtn;
-    int count = 0;
+    private int count = 0;
     Timer timer;
     private String CARD_ID = "Xbee1";
     private Snackbar snackbar2, snackbarOffline;
     EditText editText;
     private TwoProgressDialog twoProgressDialog;
 
-    GmapFragment map = new GmapFragment();
-    CommandCenter command = new CommandCenter();
+
+    //Two instances of the fragments objects we are using
+    private GmapFragment map = new GmapFragment();
+    private CommandCenter command = new CommandCenter();
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-
-        editText = (EditText)findViewById(R.id.sensorRead);
+        //test data for the list car view
+        testCar = new Car(16.95,-69.25,"TestCar",false);
+        CarList.add(testCar);
 
         //BT filters to manage connection status
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_ACL_DISCONNECTED);
         this.registerReceiver(mReceiver, filter);
+
 
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
@@ -138,6 +143,7 @@ public class MainActivity extends AppCompatActivity
             startActivityForResult(enableBtIntent, 1);
         }
 
+        //Online =/offline message
         snackbarOffline = Snackbar.make(navigationView, "You're Offline!", Snackbar.LENGTH_INDEFINITE);
         View  snackbarView = snackbarOffline.getView();
         snackbarView.setBackgroundColor(Color.parseColor("#b71c1c"));
@@ -149,6 +155,10 @@ public class MainActivity extends AppCompatActivity
 
     }
 
+    /**
+     * Handles the touch event when floating notification gets clicked
+     * @param v Current view of the App
+     */
     public void floatingAction(View v){
 
         twoProgressDialog = new TwoProgressDialog(this);
@@ -162,6 +172,10 @@ public class MainActivity extends AppCompatActivity
 
     }
 
+    /**
+     * Creats timer object and calls the timer task
+     * @param seconds Period of time that we want the task to run
+     */
     public void setTimer(int seconds) {
         timer = new Timer();
         timer.schedule(new RemindTask(), seconds * 1000);
@@ -169,11 +183,14 @@ public class MainActivity extends AppCompatActivity
 
     }
 
+    /**
+     * Inner class for the timer
+     */
     public class RemindTask extends TimerTask {
 
-
+        //This method eliminates a car from the map when the timer is up
         public void run() {
-            if (!CarList.isEmpty()) {
+           if (!CarList.isEmpty()) {
                 for (int i = 0; i < CarList.size(); i++) {
                     if (!CarList.get(i).isTimer()) {
                         NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
@@ -200,14 +217,9 @@ public class MainActivity extends AppCompatActivity
     }
 
 
-    public void showText(String text) {
-        count++;
-        // Toast.makeText(this, text,
-        //     Toast.LENGTH_SHORT).show();
 
-    }
 
-    //Handler to get DATA and use it on the UI
+    //Handler to get DATA from Arduino and use it on the UI
     Handler mHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
@@ -215,7 +227,6 @@ public class MainActivity extends AppCompatActivity
             int begin = (int) msg.arg1;
             int end = (int) msg.arg2;
             Car myCar;
-            editText = (EditText)findViewById(R.id.sensorRead);
            // editText.setEnabled(false);
 
             NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
@@ -231,7 +242,6 @@ public class MainActivity extends AppCompatActivity
                 case 1:
                     lat = 0;
                     lon = 0;
-
 
                     String writeMessage = new String(writeBuf);
                     writeMessage = writeMessage.substring(begin, end);
@@ -287,12 +297,13 @@ public class MainActivity extends AppCompatActivity
                                 } else if (CarList.size() - 1 == i && carId != CARD_ID) {
                                     Car newCar = new Car(lat, lon, carID, false);
                                     CarList.add(newCar);
-                                    System.out.println("------------------------------Carro agrergado------*----------------------");
+                                    System.out.println("------------------------------Carro agrergado------*---------------------");
 
 
                                 }
                             }
                         } else if (carID.contains("Xbee")) {
+                            //Here we add a new car to the newtork
                             Car newCar = new Car(lat, lon, carID, false);
                             CarList.add(newCar);
                             mBuilder.setContentTitle("New car");
@@ -303,7 +314,7 @@ public class MainActivity extends AppCompatActivity
                             System.out.println("------------------------------Carro agrergado------*----------------------");
 
                         }
-                        showText(writeMessage);
+
                     } catch (Exception e) {
                         e.printStackTrace();
                     }

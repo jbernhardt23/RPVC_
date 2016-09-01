@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content" android:layout_height="fill_parent">
+
+    <ProgressBar android:id="@+id/progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dip"
+        android:layout_marginBottom="1dip"
+        android:layout_marginLeft="10dip"
+        android:layout_marginRight="10dip"
+        android:layout_centerHorizontal="true" />
+    <TextView
+        android:id="@+id/progress_percent"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingBottom="12dip"
+        android:layout_marginLeft="10dip"
+        android:layout_marginRight="10dip"
+        android:layout_alignParentLeft="true"
+        android:layout_below="@id/progress"
+        />
+    <TextView
+        android:id="@+id/progress_number"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingBottom="12dip"
+        android:layout_marginLeft="50dip"
+        android:layout_marginRight="15dip"
+        android:layout_alignParentLeft="true"
+        android:layout_below="@id/progress"
+        />
+    <ProgressBar android:id="@+id/secondaryProgress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dip"
+        android:layout_marginBottom="1dip"
+        android:layout_marginLeft="10dip"
+        android:layout_marginRight="10dip"
+        android:layout_centerHorizontal="true"
+        android:layout_below="@id/progress_percent" />
+    <TextView
+        android:id="@+id/secondary_progress_percent"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingBottom="12dip"
+        android:layout_marginLeft="10dip"
+        android:layout_marginRight="10dip"
+        android:layout_alignParentLeft="true"
+        android:layout_below="@id/secondaryProgress"
+        />
+    <TextView
+        android:id="@+id/secondary_progress_number"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingBottom="12dip"
+        android:layout_marginLeft="50dip"
+        android:layout_marginRight="15dip"
+        android:layout_alignParentLeft="true"
+        android:layout_below="@id/secondaryProgress"
+        />
+
+    <TextView
+        android:text="Front Sensor"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_alignStart="@+id/progress"
+        android:id="@+id/textView7" />
+
+    <TextView
+        android:text="Back Sensor"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/textView6"
+        android:layout_below="@+id/progress_percent"
+        android:layout_alignStart="@+id/progress_percent" />
+</RelativeLayout>
