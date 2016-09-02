@@ -1,7 +1,12 @@
 package com.example.josebernhardt.rpvc_;
 import android.app.Fragment;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
+import android.support.v4.content.LocalBroadcastManager;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -46,6 +51,32 @@ public class CommandCenter extends Fragment {
 
 
     }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        //We are attaching the local broadcast to recieve the changes of the listview
+        LocalBroadcastManager.getInstance(getActivity()).registerReceiver(refreshData,
+                new IntentFilter("refresh_Data"));
+
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        //releasing the broadcast
+        LocalBroadcastManager.getInstance(getActivity()).unregisterReceiver(refreshData);
+    }
+
+    //Broadcast reciever to get updates from MainActivity
+    private BroadcastReceiver refreshData = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                adapter.notifyDataSetChanged();
+            }
+        };
+
+
 
 
 }

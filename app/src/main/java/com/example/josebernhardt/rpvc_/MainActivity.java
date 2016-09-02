@@ -27,6 +27,7 @@ import android.os.Message;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.NavigationView;
 import android.support.design.widget.Snackbar;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
@@ -76,10 +77,11 @@ public class MainActivity extends AppCompatActivity
     Thread mConnectThread;
     Thread mConnectedThread;
     Thread mSendData;
-    ProgressDialog dialog, dialog1, showSensorStatusDialog;
+    ProgressDialog dialog, dialog1;
     Button testBtn;
     private int count = 0;
     Timer timer;
+    Timer timer2;
     private String CARD_ID = "Xbee1";
     private Snackbar snackbar2, snackbarOffline;
     EditText editText;
@@ -97,6 +99,7 @@ public class MainActivity extends AppCompatActivity
 
         //test data for the list car view
         testCar = new Car(16.95,-69.25,"TestCar",false);
+
         CarList.add(testCar);
 
         //BT filters to manage connection status
@@ -151,6 +154,7 @@ public class MainActivity extends AppCompatActivity
 
 
         setTimer(7);
+        setTimerRefresher(1);
 
 
     }
@@ -172,6 +176,11 @@ public class MainActivity extends AppCompatActivity
 
     }
 
+    public void addCar(View v){
+       Car testCar2 = new Car(16.95,-69.25,"TestCar",false);
+        Car testCar3 = new Car(16.95,-69.25,"TestCar",false);
+        CarList.add(testCar2);
+    }
     /**
      * Creats timer object and calls the timer task
      * @param seconds Period of time that we want the task to run
@@ -183,6 +192,14 @@ public class MainActivity extends AppCompatActivity
 
     }
 
+    public void setTimerRefresher(int seconds) {
+        timer2 = new Timer();
+        timer2.schedule(new UpdateListView(), seconds * 1000);
+
+
+    }
+
+
     /**
      * Inner class for the timer
      */
@@ -190,7 +207,7 @@ public class MainActivity extends AppCompatActivity
 
         //This method eliminates a car from the map when the timer is up
         public void run() {
-           if (!CarList.isEmpty()) {
+          if (!CarList.isEmpty()) {
                 for (int i = 0; i < CarList.size(); i++) {
                     if (!CarList.get(i).isTimer()) {
                         NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
@@ -209,6 +226,7 @@ public class MainActivity extends AppCompatActivity
                     CarList.get(i).setInicialTimer(false);
                 }
             }
+
             timer.cancel();
             setTimer(7);
 
@@ -216,6 +234,20 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
+
+    public class UpdateListView extends TimerTask {
+
+        //This will run timer every second to refresh Data fetch from Carlist to List view
+        public void run() {
+
+            Intent intent = new Intent("refresh_data");
+            LocalBroadcastManager.getInstance(MainActivity.this).sendBroadcast(intent);
+            timer2.cancel();
+            setTimerRefresher(1);
+
+
+        }
+    }
 
 
 
@@ -591,6 +623,7 @@ public class MainActivity extends AppCompatActivity
 
 
     }
+
 
 
     @Override

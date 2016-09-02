@@ -4,47 +4,6 @@
     android:layout_height="match_parent"
     android:background="@drawable/shape">
 
-    <TextView
-        android:id="@+id/CarId"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentTop="true"
-        android:layout_marginStart="89dp"
-        android:layout_toEndOf="@+id/ListimageView"
-        android:text="Card Id Here"
-        android:textStyle="bold"
-        android:textAppearance="?android:attr/textAppearanceMedium" />
-
-
-    <TextView
-        android:id="@+id/carDistanceText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Distance: "
-        android:textStyle="bold"
-        android:textAppearance="?android:attr/textAppearanceMedium"
-        android:layout_below="@+id/carSpeedText"
-        android:layout_toEndOf="@+id/ListimageView" />
-
-    <TextView
-        android:id="@+id/textView4"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Medium Text"
-        android:textStyle="bold"
-        android:textAppearance="?android:attr/textAppearanceMedium"
-        android:layout_toEndOf="@+id/ListimageView"
-        android:layout_below="@+id/carDistanceText" />
-
-    <TextView
-        android:id="@+id/carSpeedText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Car Speed: "
-        android:textStyle="bold"
-        android:textAppearance="?android:attr/textAppearanceMedium"
-        android:layout_below="@+id/CarId"
-        android:layout_toEndOf="@+id/ListimageView" />
 
     <ImageView
         android:id="@+id/ListimageView"
@@ -53,8 +12,71 @@
         android:src="@drawable/car_icon"
         android:scaleType="centerCrop"
         android:cropToPadding="false"
+        android:layout_alignParentTop="true" />
+
+    <TextView
+        android:text=">Speed: "
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:id="@+id/carSpeedText"
+        android:layout_below="@+id/CarId"
+        android:layout_toEndOf="@+id/ListimageView"
+        android:textAppearance="@style/TextAppearance.AppCompat.Menu" />
+
+    <TextView
+        android:text=">Distance: "
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/distanceText"
+        android:layout_below="@+id/carSpeedText"
+        android:layout_alignStart="@+id/carSpeedText"
+        android:textAppearance="@style/TextAppearance.AppCompat.Menu" />
+
+    <TextView
+        android:id="@+id/CarId"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Card Id Here"
+        android:textAppearance="@style/TextAppearance.AppCompat.Widget.Switch"
         android:layout_alignParentTop="true"
-        android:layout_alignParentStart="true" />
+        android:layout_toEndOf="@+id/statusText" />
+
+    <TextView
+        android:text=">Last Seen:"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/lastSeenText"
+        android:layout_below="@+id/statusText"
+        android:layout_alignStart="@+id/statusText"
+        android:textAppearance="@style/TextAppearance.AppCompat.Menu" />
+
+    <TextView
+        android:text=">Status: "
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/statusText"
+        android:textAppearance="@style/TextAppearance.AppCompat.Menu"
+        android:layout_below="@+id/distanceText"
+        android:layout_alignStart="@+id/distanceText" />
+
+    <Chronometer
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"
+        android:id="@+id/chronometer2"
+        android:layout_alignBottom="@+id/carSpeedText"
+        android:layout_alignParentEnd="true" />
+
+    <TextClock
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/textClock"
+        android:layout_alignBaseline="@+id/lastSeenText"
+        android:layout_alignBottom="@+id/lastSeenText"
+        android:layout_toEndOf="@+id/lastSeenText"
+        android:layout_marginStart="8dp" />
+
 
 
 </RelativeLayout>
