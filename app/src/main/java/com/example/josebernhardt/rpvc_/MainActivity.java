@@ -79,13 +79,17 @@ public class MainActivity extends AppCompatActivity
     Thread mSendData;
     ProgressDialog dialog, dialog1;
     Button testBtn;
-    private int count = 0;
+    private double incoming = 0;
+    private double distance = 400;
+    private Double dataPercentage = 0.0;
+    private int dataToDisplay = 0;
     Timer timer;
     Timer timer2;
-    private String CARD_ID = "Xbee1";
+    private String CARD_ID = "Xbee2";
     private Snackbar snackbar2, snackbarOffline;
     EditText editText;
     private TwoProgressDialog twoProgressDialog;
+    String sensorReady ="0";
 
 
     //Two instances of the fragments objects we are using
@@ -98,9 +102,9 @@ public class MainActivity extends AppCompatActivity
         super.onCreate(savedInstanceState);
 
         //test data for the list car view
-        testCar = new Car(16.95,-69.25,"TestCar",false);
+       // testCar = new Car(16.95,-69.25,"TestCar",false);
 
-        CarList.add(testCar);
+      //  CarList.add(testCar);
 
         //BT filters to manage connection status
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_ACL_DISCONNECTED);
@@ -153,11 +157,13 @@ public class MainActivity extends AppCompatActivity
         snackbarOffline.show();
 
 
-        setTimer(7);
+        setTimer(10);
         setTimerRefresher(1);
 
 
     }
+
+
 
     /**
      * Handles the touch event when floating notification gets clicked
@@ -170,11 +176,31 @@ public class MainActivity extends AppCompatActivity
         twoProgressDialog.setCancelable(true);
         twoProgressDialog.show();
 
-        twoProgressDialog.setProgress(64);
-        twoProgressDialog.setSecondaryProgress(32);
+        /**
+         * Thread to update real time sensor monitor
+         */
+        Thread updateProgressThread = new Thread() {
+            @Override
+            public void run() {
+                try {
+
+                    while(twoProgressDialog.isShowing()){
+                        twoProgressDialog.setProgress(dataPercentage.intValue());
+                        twoProgressDialog.setSecondaryProgress(32);
+                        sleep(100);
+                    }
+
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+        updateProgressThread.start();
 
 
     }
+
+
 
     public void addCar(View v){
        Car testCar2 = new Car(16.95,-69.25,"TestCar",false);
@@ -228,7 +254,7 @@ public class MainActivity extends AppCompatActivity
             }
 
             timer.cancel();
-            setTimer(7);
+            setTimer(10);
 
 
         }
@@ -259,16 +285,12 @@ public class MainActivity extends AppCompatActivity
             int begin = (int) msg.arg1;
             int end = (int) msg.arg2;
             Car myCar;
-           // editText.setEnabled(false);
 
             NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(MainActivity.this);
             mBuilder.setSmallIcon(R.drawable.car_icon);
             mBuilder.setSound(Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.censor));
             String carID;
-            String sensorReady ="";
-            String temp = "empty";
-
 
             switch (msg.what) {
                 case 1:
@@ -287,10 +309,13 @@ public class MainActivity extends AppCompatActivity
                         String tempLon = data[2];
                         try {
                             sensorReady = data[3];
-                        }catch(Exception e){
+                            incoming = Double.parseDouble(sensorReady.substring(0,2));
+                            dataPercentage = (incoming/distance)*100;
 
+
+                        }catch(Exception e){
+                            System.out.println("data mala");
                         }
-                        editText.setText("Sensor: " + sensorReady);
 
                         lat = Double.parseDouble(tempLat);
                         lon = Double.parseDouble(tempLon);

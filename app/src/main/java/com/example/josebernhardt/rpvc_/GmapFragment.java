@@ -62,7 +62,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
     private boolean gpsProviderReady = false;
     private boolean flag = false;
     private Location lastKnownLocation;
-    private String CARD_ID = "Xbee1";
+    private String CARD_ID = "Xbee2";
     private AlertDialog.Builder builder;
     private AlertDialog alertDialog;
 
