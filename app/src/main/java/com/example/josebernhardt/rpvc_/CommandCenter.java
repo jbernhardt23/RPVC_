@@ -31,6 +31,8 @@ public class CommandCenter extends Fragment {
 
     }
 
+
+
     @Nullable
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
@@ -53,28 +55,30 @@ public class CommandCenter extends Fragment {
     }
 
     @Override
-    public void onResume() {
-        super.onResume();
-        //We are attaching the local broadcast to recieve the changes of the listview
-        LocalBroadcastManager.getInstance(getActivity()).registerReceiver(refreshData,
-                new IntentFilter("refresh_Data"));
-
-    }
-
-    @Override
     public void onPause() {
-        super.onPause();
         //releasing the broadcast
         LocalBroadcastManager.getInstance(getActivity()).unregisterReceiver(refreshData);
+        super.onPause();
     }
+    @Override
+    public void onResume() {
+        //We are attaching the local broadcast to recieve the changes of the listview
+        LocalBroadcastManager.getInstance(getActivity()).registerReceiver(refreshData,
+                new IntentFilter("refresh_data"));
 
+        super.onResume();
+    }
     //Broadcast reciever to get updates from MainActivity
     private BroadcastReceiver refreshData = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                adapter.notifyDataSetChanged();
-            }
-        };
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            adapter.notifyDataSetChanged();
+        }
+    };
+
+
+
+
 
 
 
