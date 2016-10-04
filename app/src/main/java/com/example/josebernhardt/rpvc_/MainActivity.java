@@ -61,7 +61,6 @@ public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
     public static List<Car> CarList = new ArrayList<>();
-    private Car testCar;
     double lat, lon, carSpeed;
     private String carId;
     private boolean flagCommand = false;
@@ -77,7 +76,7 @@ public class MainActivity extends AppCompatActivity
     Thread mConnectThread;
     Thread mConnectedThread;
     Thread mSendData;
-    ProgressDialog dialog, dialog1;
+    private ProgressDialog dialog, dialog1;
     Button testBtn;
     private double incoming = 0;
     private double distance = 400;
@@ -87,7 +86,6 @@ public class MainActivity extends AppCompatActivity
     Timer timer2;
     private String CARD_ID = "Xbee2";
     private Snackbar snackbar2, snackbarOffline;
-    EditText editText;
     private TwoProgressDialog twoProgressDialog;
     String sensorReady ="0";
 
@@ -155,6 +153,8 @@ public class MainActivity extends AppCompatActivity
         View  snackbarView = snackbarOffline.getView();
         snackbarView.setBackgroundColor(Color.parseColor("#b71c1c"));
         snackbarOffline.show();
+
+            //Starting the sensor thread, this has to be active always
 
 
         setTimer(10);
@@ -302,19 +302,21 @@ public class MainActivity extends AppCompatActivity
 
                     try {
                         myCar = GmapFragment.myCar;
-
+                        if(writeMessage.contains("/"))
+                             writeMessage = writeMessage.replace("/",",");
                         String[] data = writeMessage.split(",");
                         carID = data[0];
+
                         String tempLat = data[1];
                         String tempLon = data[2];
                         try {
                             sensorReady = data[3];
-                            incoming = Double.parseDouble(sensorReady.substring(0,2));
+                            incoming = Double.parseDouble(sensorReady);
                             dataPercentage = (incoming/distance)*100;
 
 
                         }catch(Exception e){
-                            System.out.println("data mala");
+                            System.out.println("Bad data");
                         }
 
                         lat = Double.parseDouble(tempLat);
@@ -354,7 +356,7 @@ public class MainActivity extends AppCompatActivity
                                 } else if (CarList.size() - 1 == i && carId != CARD_ID) {
                                     Car newCar = new Car(lat, lon, carID, false);
                                     CarList.add(newCar);
-                                    System.out.println("------------------------------Carro agrergado------*---------------------");
+                                    System.out.println("------------------------------Carro agrergado--------------------------");
 
 
                                 }
@@ -380,7 +382,6 @@ public class MainActivity extends AppCompatActivity
             }
         }
     };
-
 
 
 
@@ -453,12 +454,13 @@ public class MainActivity extends AppCompatActivity
         }
     };
 
-    //Thread for the recieving
+    //Thread for the recieving cars position
     private class ConnectedThread extends Thread {
 
         private BluetoothSocket mmSocket;
         private InputStream mmInStream;
         private OutputStream mmOutStream;
+        private boolean flag = false;
 
         public ConnectedThread(BluetoothSocket socket) {
 
@@ -479,6 +481,7 @@ public class MainActivity extends AppCompatActivity
 
             byte[] buffer = new byte[1024];
             int begin = 0;
+            int beginSensor = 0;
             int bytes = 0;
             //Dismiss dialog called on the drawer
             dialog.dismiss();
@@ -493,7 +496,7 @@ public class MainActivity extends AppCompatActivity
                     bytes += mmInStream.read(buffer, bytes, buffer.length - bytes);
                     for (int i = begin; i < bytes; i++) {
                         if (buffer[i] == "#".getBytes()[0]) {
-                            mHandler.obtainMessage(1, begin, i, buffer).sendToTarget();
+                           mHandler.obtainMessage(1, begin, i, buffer).sendToTarget();
                             begin = i + 1;
                             if (i == bytes - 1) {
                                 bytes = 0;
@@ -502,34 +505,18 @@ public class MainActivity extends AppCompatActivity
                         }
                     }
 
-
                 } catch (IOException e) {
                     break;
                 }
-
-            }
-
-        }
-
-        public void write(byte[] bytes) {
-            try {
-
-                mmOutStream.write(bytes);
-
-            } catch (IOException e) {
             }
         }
 
-        public void cancel() {
-            try {
-                mmSocket.close();
-            } catch (IOException e) {
-            }
-        }
     }
 
 
-    //Thread sending part
+
+
+    //Thread sending Car info
     private class SendData extends Thread {
 
         private BluetoothSocket mmSocket;
@@ -558,12 +545,11 @@ public class MainActivity extends AppCompatActivity
                 if (myCar.getLat() != 0 && myCar.getLon() != 0 && myCar != null) {
                     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
                     try {
-                        outputStream.write("#".getBytes());
+                        outputStream.write("/".getBytes());
                         outputStream.write(myCar.getCarId().getBytes());
                         outputStream.write(",".getBytes());
                         outputStream.write(myCar.toString().getBytes());
                         byte dataSend[] = outputStream.toByteArray();
-                        String test = dataSend.toString();
                         write(dataSend);
 
                     } catch (IOException e) {
@@ -588,12 +574,6 @@ public class MainActivity extends AppCompatActivity
             }
         }
 
-        public void cancel() {
-            try {
-                mmSocket.close();
-            } catch (IOException e) {
-            }
-        }
     }
 
     //Thread for the Blueetooth
@@ -624,6 +604,8 @@ public class MainActivity extends AppCompatActivity
                 flagBT = true;
                 mConnectedThread = new ConnectedThread(mmSocket);
                 mSendData = new SendData(mmSocket);
+
+
                 dialog1.dismiss();
                 displayHandler.obtainMessage(1).sendToTarget();
 
@@ -638,14 +620,6 @@ public class MainActivity extends AppCompatActivity
                 return;
             }
         }
-
-        public void cancel() {
-            try {
-                mmSocket.close();
-            } catch (IOException e) {
-            }
-        }
-
 
     }
 
@@ -704,7 +678,7 @@ public class MainActivity extends AppCompatActivity
 
         android.app.FragmentManager fm = getFragmentManager();
         FragmentTransaction transaction = fm.beginTransaction();
-        ;
+
 
 
         // Handle navigation view item clicks here.
