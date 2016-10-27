@@ -21,7 +21,7 @@ import android.support.v7.app.AlertDialog;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Toast;
+
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -36,9 +36,7 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.google.android.gms.internal.zzs.TAG;
 
-//import com.google.android.gms.location.LocationListener;
 
 
 /**
@@ -264,9 +262,10 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
     }
 
 
-
-
-    //Drawing on the map
+    /***
+     * Main handler that takes care of drawing the markers on the Map
+     * depending on the current List of Cars
+     */
     private  Handler displayHandler = new Handler() {
         public void handleMessage(Message message) {
             switch (message.what) {

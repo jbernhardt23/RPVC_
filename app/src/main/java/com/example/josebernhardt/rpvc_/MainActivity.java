@@ -6,7 +6,7 @@ import android.app.Notification;
 import android.graphics.Color;
 import android.app.FragmentTransaction;
 import android.app.NotificationManager;
-import android.app.PendingIntent;
+
 import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -16,15 +16,14 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.graphics.Color;
+
 import android.location.Location;
-import android.media.Ringtone;
-import android.media.RingtoneManager;
+
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
-import android.support.design.widget.FloatingActionButton;
+
 import android.support.design.widget.NavigationView;
 import android.support.design.widget.Snackbar;
 import android.support.v4.content.LocalBroadcastManager;
@@ -39,7 +38,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
+
 import android.widget.Toast;
 
 
@@ -51,11 +50,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.Timer;
-import java.util.TimerTask;
 import java.util.UUID;
 
 
-
+/**
+ * @author Jose Bernhardt
+ */
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
@@ -96,15 +96,15 @@ public class MainActivity extends AppCompatActivity
     private GmapFragment map = new GmapFragment();
     private CommandCenter command = new CommandCenter();
 
+    Handler pdCanceller = new Handler();
+    private Handler deleteOldCarsHandler = new Handler();
+    private Handler refreshListHandler = new Handler();
+
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        //test data for the list car view
-       // testCar = new Car(16.95,-69.25,"TestCar",false);
-
-      //  CarList.add(testCar);
 
         //BT filters to manage connection status
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_ACL_DISCONNECTED);
@@ -156,11 +156,10 @@ public class MainActivity extends AppCompatActivity
         snackbarView.setBackgroundColor(Color.parseColor("#b71c1c"));
         snackbarOffline.show();
 
-            //Starting the sensor thread, this has to be active always
+        //Starting checks cars runnable to see who is active
+        deleteOldCarsHandler.postDelayed(checkCarsRunnable, 5000);
+        refreshListHandler.postDelayed(refreshListRunnable, 1000);
 
-
-        setTimer(5);
-        setTimerRefresher(1);
 
 
     }
@@ -178,6 +177,8 @@ public class MainActivity extends AppCompatActivity
         twoProgressDialog.setCancelable(true);
         twoProgressDialog.show();
 
+
+
         /**
          * Thread to update real time sensor monitor
          */
@@ -187,10 +188,17 @@ public class MainActivity extends AppCompatActivity
                 try {
 
                     while(twoProgressDialog.isShowing()){
-                        twoProgressDialog.setProgress(frontDataPercentage.intValue());
-                        twoProgressDialog.setSecondaryProgress(backDataPercentage.intValue());
+                        if(!(frontDataPercentage.intValue() == 0))
+                            twoProgressDialog.setProgress(frontDataPercentage.intValue());
+
+                        if(!(backDataPercentage.intValue() == 0))
+                            twoProgressDialog.setSecondaryProgress(backDataPercentage.intValue());
+
                         sleep(100);
                     }
+
+                    frontDataPercentage = 0.0;
+                    backDataPercentage = 0.0;
 
                 } catch (InterruptedException e) {
                     e.printStackTrace();
@@ -200,42 +208,38 @@ public class MainActivity extends AppCompatActivity
         updateProgressThread.start();
 
 
+
     }
 
 
 
-    public void addCar(View v){
-       Car testCar2 = new Car(16.95,-69.25,"TestCar",false);
-        Car testCar3 = new Car(16.95,-69.25,"TestCar",false);
-        CarList.add(testCar2);
-    }
-    /**
-     * Creats timer object and calls the timer task
-     * @param seconds Period of time that we want the task to run
+    /***
+     * Sending Local Broadcast on app to send updates of cars
+     * information to the Car List. This is sent every second.
      */
-    public void setTimer(int seconds) {
-        timer = new Timer();
-        timer.schedule(new RemindTask(), seconds * 1000);
-
-
-    }
-
-    public void setTimerRefresher(int seconds) {
-        timer2 = new Timer();
-        timer2.schedule(new UpdateListView(), seconds * 1000);
-
-
-    }
-
-
-    /**
-     * Inner class for the timer
-     */
-    public class RemindTask extends TimerTask {
-
-        //This method eliminates a car from the map when the timer is up
+    private Runnable refreshListRunnable = new Runnable() {
+        @Override
         public void run() {
-          if (!CarList.isEmpty()) {
+
+            Intent intent = new Intent("refresh_data");
+            LocalBroadcastManager.getInstance(MainActivity.this).sendBroadcast(intent);
+            refreshListHandler.postDelayed(this, 1000);
+        }
+    };
+
+
+
+    /***
+     * Handler to check if cars are still active on the network
+     * Dead Interval time 5 Seconds
+     * Cars have to keep sending position within this interval
+     */
+
+    private Runnable checkCarsRunnable = new Runnable() {
+        @Override
+        public void run() {
+
+            if (!CarList.isEmpty()) {
                 for (int i = 0; i < CarList.size(); i++) {
                     if (!CarList.get(i).isTimer()) {
                         NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
@@ -254,32 +258,18 @@ public class MainActivity extends AppCompatActivity
                     CarList.get(i).setInicialTimer(false);
                 }
             }
-
-            timer.cancel();
-            setTimer(5);
-
-
+            deleteOldCarsHandler.postDelayed(this, 5000);
         }
-    }
+    };
 
 
-    public class UpdateListView extends TimerTask {
-
-        //This will run timer every second to refresh Data fetch from Carlist to List view
-        public void run() {
-
-            Intent intent = new Intent("refresh_data");
-            LocalBroadcastManager.getInstance(MainActivity.this).sendBroadcast(intent);
-            timer2.cancel();
-            setTimerRefresher(1);
-
-
-        }
-    }
-
-
-
-    //Handler to get DATA from Arduino and use it on the UI
+    /***
+     * Main handler that recieves all information from all
+     * cars joining the network. Responsable of updating
+     * cars position and sensors real time. Also calculates
+     * distance from incoming cars from our current position and
+     * provides heads up alerts.
+     */
     Handler mHandler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
@@ -288,6 +278,7 @@ public class MainActivity extends AppCompatActivity
             int end = (int) msg.arg2;
             Car myCar;
 
+             //Set notifications alerts
             NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(MainActivity.this);
             mBuilder.setSmallIcon(R.drawable.car_icon);
@@ -298,7 +289,7 @@ public class MainActivity extends AppCompatActivity
                 case 1:
                     lat = 0;
                     lon = 0;
-
+                    //Converting buffer to string
                     String writeMessage = new String(writeBuf);
                     writeMessage = writeMessage.substring(begin, end);
 
@@ -322,8 +313,8 @@ public class MainActivity extends AppCompatActivity
                                 backSensor = sensorData[1];
                                 frontSensorNum = Double.parseDouble(frontSensor);
                                 backSensorNum = Double.parseDouble(backSensor);
-                                frontDataPercentage = (frontSensorNum / distance) * 100;
-                                backDataPercentage = (backSensorNum / distance) * 100;
+                                frontDataPercentage = 1.0/(frontSensorNum / distance) * 100;
+                                backDataPercentage = 1.0/(backSensorNum / distance) * 100;
 
 
                             } catch (Exception e) {
@@ -360,7 +351,7 @@ public class MainActivity extends AppCompatActivity
                                             notificationManager.notify(0, mBuilder.build());
                                             CarList.get(i).setDistanceBetween(distanceBetween);
                                             distanceBetween = 0;
-                                            //CarList.get(i).setDistanceBetween(distanceBetween);
+                                            CarList.get(i).setDistanceBetween(distanceBetween);
                                         }
 
                                         break;
@@ -386,13 +377,15 @@ public class MainActivity extends AppCompatActivity
                             }
                         }else if(writeMessage.contains("!")){
                             try{
+                                //This is the scenario when we are not connected to the network
+                                // and we need to get sensors information.
                                 String[] sensorData = writeMessage.split("!");
                                 frontSensor = sensorData[0];
                                 backSensor = sensorData[1];
                                 frontSensorNum = Double.parseDouble(frontSensor);
                                 backSensorNum = Double.parseDouble(backSensor);
-                                frontDataPercentage = (frontSensorNum / distance) * 100;
-                                backDataPercentage = (backSensorNum / distance) * 100;
+                                frontDataPercentage = ((distance - frontSensorNum )/ distance) * 100;
+                                backDataPercentage = ((distance - backSensorNum) / distance) * 100;
 
                             }catch(Exception e){
 
@@ -441,7 +434,6 @@ public class MainActivity extends AppCompatActivity
         }
     };
 
-    Handler pdCanceller = new Handler();
 
     //The BroadcastReceiver that listens for bluetooth broadcasts when disconnected
     private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
