@@ -61,7 +61,7 @@ public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
     public static List<Car> CarList = new ArrayList<>();
-    double lat, lon, carSpeed;
+    private double lat, lon, carSpeed;
     private String carId;
     private boolean flagCommand = false;
     private boolean flagMap = false;
@@ -72,23 +72,25 @@ public class MainActivity extends AppCompatActivity
     private NavigationView navigationView;
     private BluetoothAdapter mBluetoothAdapter;
     private BluetoothDevice mDevice;
-    Intent enableBtIntent;
+    private Intent enableBtIntent;
     Thread mConnectThread;
     Thread mConnectedThread;
     Thread mSendData;
     private ProgressDialog dialog, dialog1;
     Button testBtn;
-    private double incoming = 0;
+    private double frontSensorNum = 0;
+    private double backSensorNum = 0;
     private double distance = 400;
-    private Double dataPercentage = 0.0;
+    private Double frontDataPercentage = 0.0;
+    private Double backDataPercentage = 0.0;
     private int dataToDisplay = 0;
     Timer timer;
     Timer timer2;
-    private String CARD_ID = "Xbee2";
+    private final String CARD_ID = "Xbee1";
     private Snackbar snackbar2, snackbarOffline;
     private TwoProgressDialog twoProgressDialog;
-    String sensorReady ="0";
-
+    private String frontSensor ="0";
+    private String backSensor ="0";
 
     //Two instances of the fragments objects we are using
     private GmapFragment map = new GmapFragment();
@@ -157,7 +159,7 @@ public class MainActivity extends AppCompatActivity
             //Starting the sensor thread, this has to be active always
 
 
-        setTimer(10);
+        setTimer(5);
         setTimerRefresher(1);
 
 
@@ -185,8 +187,8 @@ public class MainActivity extends AppCompatActivity
                 try {
 
                     while(twoProgressDialog.isShowing()){
-                        twoProgressDialog.setProgress(dataPercentage.intValue());
-                        twoProgressDialog.setSecondaryProgress(32);
+                        twoProgressDialog.setProgress(frontDataPercentage.intValue());
+                        twoProgressDialog.setSecondaryProgress(backDataPercentage.intValue());
                         sleep(100);
                     }
 
@@ -254,7 +256,7 @@ public class MainActivity extends AppCompatActivity
             }
 
             timer.cancel();
-            setTimer(10);
+            setTimer(5);
 
 
         }
@@ -302,110 +304,123 @@ public class MainActivity extends AppCompatActivity
 
                     try {
                         myCar = GmapFragment.myCar;
-                        if(writeMessage.contains("/"))
-                             writeMessage = writeMessage.replace("/",",");
-                        String[] data = writeMessage.split(",");
-                        carID = data[0];
+                        if(writeMessage.contains("/")) {
+                            writeMessage = writeMessage.replace("/", ",");
+                            String[] positionData = writeMessage.split(",");
 
-                        String tempLat = data[1];
-                        String tempLon = data[2];
-                        try {
-                            sensorReady = data[3];
-                            incoming = Double.parseDouble(sensorReady);
-                            dataPercentage = (incoming/distance)*100;
+                            //Assigning temp info of incoming car
+                            carID = positionData[0];
+                            String tempLat = positionData[1];
+                            String tempLon = positionData[2];
 
 
-                        }catch(Exception e){
-                            System.out.println("Bad data");
-                        }
+                            try {
 
-                        lat = Double.parseDouble(tempLat);
-                        lon = Double.parseDouble(tempLon);
-
-                        if (!CarList.isEmpty()) {
-                            for (int i = 0; i < CarList.size(); i++) {
-                                if (CarList.get(i).getCarId().equals(carID)) {
-                                    CarList.get(i).setLon(lon);
-                                    CarList.get(i).setLat(lat);
-                                    CarList.get(i).setInicialTimer(true);
-
-                                    //Compare if current car is close to my Car
-                                    Location nextCarPosition = new Location("Point A");
-                                    nextCarPosition.setLatitude(lat);
-                                    nextCarPosition.setLongitude(lon);
-
-                                    Location myCarsPosition = new Location("Point B");
-                                    myCarsPosition.setLatitude(myCar.getLat());
-                                    myCarsPosition.setLongitude(myCar.getLon());
-
-                                    float distanceBetween = myCarsPosition.distanceTo(nextCarPosition);
-
-                                   if (distanceBetween < 15 || distanceBetween < 20) {
-
-                                        mBuilder.setContentTitle("Proximity Alert!");
-                                        mBuilder.setPriority(Notification.PRIORITY_MAX);
-                                        mBuilder.setContentText(CarList.get(i).getCarId()
-                                                + " is getting too close");
-                                        notificationManager.notify(0, mBuilder.build());
-                                        CarList.get(i).setDistanceBetween(distanceBetween);
-                                        distanceBetween = 0;
-                                        //CarList.get(i).setDistanceBetween(distanceBetween);
-                                    }
-
-                                    break;
-                                } else if (CarList.size() - 1 == i && carId != CARD_ID) {
-                                    Car newCar = new Car(lat, lon, carID, false);
-                                    CarList.add(newCar);
-                                    System.out.println("------------------------------Carro agrergado--------------------------");
+                                //Assigning temp sensors data
+                                String[] sensorData = positionData[3].split("$");
+                                frontSensor = sensorData[0];
+                                backSensor = sensorData[1];
+                                frontSensorNum = Double.parseDouble(frontSensor);
+                                backSensorNum = Double.parseDouble(backSensor);
+                                frontDataPercentage = (frontSensorNum / distance) * 100;
+                                backDataPercentage = (backSensorNum / distance) * 100;
 
 
-                                }
+                            } catch (Exception e) {
+                                System.out.println("Bad sensor data");
                             }
-                        } else if (carID.contains("Xbee")) {
-                            //Here we add a new car to the newtork
-                            Car newCar = new Car(lat, lon, carID, false);
-                            CarList.add(newCar);
-                            mBuilder.setContentTitle("New car");
-                            mBuilder.setPriority(Notification.PRIORITY_MAX);
-                            mBuilder.setContentText("Car: " + carID
-                                    + " has joined!");
-                            notificationManager.notify(0, mBuilder.build());
-                            System.out.println("------------------------------Carro agrergado------*----------------------");
 
+                            lat = Double.parseDouble(tempLat);
+                            lon = Double.parseDouble(tempLon);
+
+                            if (!CarList.isEmpty()) {
+                                for (int i = 0; i < CarList.size(); i++) {
+                                    if (CarList.get(i).getCarId().equals(carID)) {
+                                        CarList.get(i).setLon(lon);
+                                        CarList.get(i).setLat(lat);
+                                        CarList.get(i).setInicialTimer(true);
+
+                                        //Compare if current car is close to my Car
+                                        Location nextCarPosition = new Location("Point A");
+                                        nextCarPosition.setLatitude(lat);
+                                        nextCarPosition.setLongitude(lon);
+
+                                        Location myCarsPosition = new Location("Point B");
+                                        myCarsPosition.setLatitude(myCar.getLat());
+                                        myCarsPosition.setLongitude(myCar.getLon());
+
+                                        float distanceBetween = myCarsPosition.distanceTo(nextCarPosition);
+
+                                        if (distanceBetween < 15 || distanceBetween < 20) {
+
+                                            mBuilder.setContentTitle("Proximity Alert!");
+                                            mBuilder.setPriority(Notification.PRIORITY_MAX);
+                                            mBuilder.setContentText(CarList.get(i).getCarId()
+                                                    + " is getting too close");
+                                            notificationManager.notify(0, mBuilder.build());
+                                            CarList.get(i).setDistanceBetween(distanceBetween);
+                                            distanceBetween = 0;
+                                            //CarList.get(i).setDistanceBetween(distanceBetween);
+                                        }
+
+                                        break;
+                                    } else if (CarList.size() - 1 == i && carId != CARD_ID) {
+                                        Car newCar = new Car(lat, lon, carID, false);
+                                        CarList.add(newCar);
+                                        System.out.println("------------------------------Carro agrergado--------------------------");
+
+
+                                    }
+                                }
+                            } else if (carID.contains("Xbee")) {
+                                //Here we add a new car to the newtork
+                                Car newCar = new Car(lat, lon, carID, false);
+                                CarList.add(newCar);
+                                mBuilder.setContentTitle("New car");
+                                mBuilder.setPriority(Notification.PRIORITY_MAX);
+                                mBuilder.setContentText("Car: " + carID
+                                        + " has joined!");
+                                notificationManager.notify(0, mBuilder.build());
+                                System.out.println("------------------------------Carro agrergado---------------------------");
+
+                            }
+                        }else if(writeMessage.contains("!")){
+                            try{
+                                String[] sensorData = writeMessage.split("!");
+                                frontSensor = sensorData[0];
+                                backSensor = sensorData[1];
+                                frontSensorNum = Double.parseDouble(frontSensor);
+                                backSensorNum = Double.parseDouble(backSensor);
+                                frontDataPercentage = (frontSensorNum / distance) * 100;
+                                backDataPercentage = (backSensorNum / distance) * 100;
+
+                            }catch(Exception e){
+
+                            }
                         }
-
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
                     break;
 
-            }
-        }
-    };
-
-
-
-    //Displaying information of thread status
-    Handler displayHandler = new Handler() {
-        public void handleMessage(Message message) {
-            switch (message.what) {
-                case 1:
+                case 2:
                     Snackbar snackbar = Snackbar.make(navigationView, "Bluetooth Ready, Device Paired: " +
                                     mDevice.getName(),
                             Snackbar.LENGTH_INDEFINITE);
                     snackbar.show();
                     break;
-                case 2:
+                case 3:
                     snackbar2 = Snackbar.make(navigationView, "You're Online!", Snackbar.LENGTH_INDEFINITE);
                     snackbar2.setActionTextColor(Color.GREEN);
                     View  snackbarView = snackbar2.getView();
                     snackbarView.setBackgroundColor(Color.parseColor("#1B5E20"));
                     snackbar2.show();
                     break;
-
             }
         }
     };
+
+
 
     //Timeout if connection with Bluetooth not established
     Runnable progressRunnable = new Runnable() {
@@ -486,7 +501,7 @@ public class MainActivity extends AppCompatActivity
             //Dismiss dialog called on the drawer
             dialog.dismiss();
             snackbarOffline.dismiss();
-            displayHandler.obtainMessage(2).sendToTarget();
+            mHandler.obtainMessage(3).sendToTarget();
 
 
             while (true && !isInterrupted()) {
@@ -512,9 +527,6 @@ public class MainActivity extends AppCompatActivity
         }
 
     }
-
-
-
 
     //Thread sending Car info
     private class SendData extends Thread {
@@ -607,7 +619,7 @@ public class MainActivity extends AppCompatActivity
 
 
                 dialog1.dismiss();
-                displayHandler.obtainMessage(1).sendToTarget();
+                mHandler.obtainMessage(2).sendToTarget();
 
 
             } catch (IOException connectException) {

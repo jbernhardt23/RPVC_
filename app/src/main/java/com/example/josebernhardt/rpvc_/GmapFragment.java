@@ -62,7 +62,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
     private boolean gpsProviderReady = false;
     private boolean flag = false;
     private Location lastKnownLocation;
-    private String CARD_ID = "Xbee2";
+    private final String CARD_ID = "Xbee1";
     private AlertDialog.Builder builder;
     private AlertDialog alertDialog;
 
@@ -350,10 +350,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
                     displayHandler.obtainMessage(1).sendToTarget();
 
                 }else if(!markersList.isEmpty()){
-
                     displayHandler.obtainMessage(2).sendToTarget();
-
-
                 }
                 try {
                     Thread.sleep(200);
@@ -361,14 +358,6 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
                     e.printStackTrace();
                 }
             }
-        }
-
-        public void write(byte[] bytes) {
-
-        }
-
-        public void cancel() {
-
         }
 
     }
