@@ -8,7 +8,7 @@ public class Car {
 
     private double lat, lon, currentSpeed;
     private boolean timer = false;
-    private boolean  frontSensor, backSensor, carCrashed;
+    private boolean  carCrashed = false;
     private String carId;
 
 
@@ -62,22 +62,6 @@ public class Car {
 
     public void setCurrentSpeed(double currentSpeed) {
         this.currentSpeed = currentSpeed;
-    }
-
-    public boolean isFrontSensor() {
-        return frontSensor;
-    }
-
-    public void setFrontSensor(boolean frontSensor) {
-        this.frontSensor = frontSensor;
-    }
-
-    public boolean isBackSensor() {
-        return backSensor;
-    }
-
-    public void setBackSensor(boolean backSensor) {
-        this.backSensor = backSensor;
     }
 
     public boolean isCarCrashed() {

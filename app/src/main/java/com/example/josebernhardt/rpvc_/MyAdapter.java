@@ -63,10 +63,10 @@ public class MyAdapter extends BaseAdapter {
         cardIdText.setText(String.valueOf(CarList.get(position).getCarId()));
 
         TextView speedText = (TextView) vi.findViewById(R.id.carSpeedText);
-        speedText.setText(">Speed: "  + String.valueOf(CarList.get(position).getCurrentSpeed() + " Km/h"));
+        speedText.setText(">Speed: "  + String.valueOf(String.format("%.2f",CarList.get(position).getCurrentSpeed())) + " Km/h");
 
         TextView distanceText = (TextView) vi.findViewById(R.id.distanceText);
-        distanceText.setText(">Distance: "  + String.valueOf(CarList.get(position).getDistanceBetween() + " m"));
+        distanceText.setText(">Distance: "  + String.valueOf(String.format("%.2f",CarList.get(position).getDistanceBetween())) + " m");
 
         ImageView imageView = (ImageView) vi.findViewById(R.id.ListimageView);
         imageView.setImageResource(R.drawable.car_icon);

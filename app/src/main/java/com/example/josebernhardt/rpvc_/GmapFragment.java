@@ -63,13 +63,14 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
     private final String CARD_ID = "Xbee1";
     private AlertDialog.Builder builder;
     private AlertDialog alertDialog;
+    private ProgressDialog dialogMapLoading;
 
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-
+      //  dialogMapLoading  = ProgressDialog.show(getActivity(), "", "Getting your position...", true, false);
 
 
     }
@@ -98,15 +99,12 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
                 fragment.getMapAsync(this);
             }
 
-
           /*  //Getting map in case is Null
             if (gMap == null) {
                 gMap = ((MapFragment) getFragmentManager().
                         findFragmentById(R.id.map)).getMap();
             }*/
 
-
-        //  dialog = ProgressDialog.show(getActivity(), "", "Loading Map", true, false);
     }
 
     @Override
@@ -114,6 +112,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
         //Set up of dialog for user to be aware of GPS settings to be on
         builder = new AlertDialog.Builder(getActivity());
         gMap = googleMap;
+
         permissions();
 
         putCar = new putCar();
@@ -126,7 +125,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
                 .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
 
         // locationManager = (LocationManager) getActivity().getSystemService(Context.LOCATION_SERVICE);
-        googleMap.animateCamera(CameraUpdateFactory.zoomTo(15));
+        googleMap.animateCamera(CameraUpdateFactory.zoomTo(5));
         googleMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
         googleMap.getUiSettings().setZoomGesturesEnabled(true);
         googleMap.getUiSettings().setZoomControlsEnabled(true);
@@ -137,9 +136,8 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
             public void onLocationChanged(Location location) {
 
                 if(!gpsProviderReady) {
-                    latitude = location.getLatitude();
-                    //  Toast.makeText(getActivity(), location.getAccuracy() + " " + location.getProvider(), Toast.LENGTH_SHORT).show();
 
+                    latitude = location.getLatitude();
                     System.out.println(location.getAccuracy() + " " + location.getProvider());
                     longitude = location.getLongitude();
                     myCar.setCarId(CARD_ID);
@@ -152,7 +150,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
                     //    marker.hideInfoWindow();
                     marker.showInfoWindow();
                     googleMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(latitude, longitude)));
-                    googleMap.animateCamera(CameraUpdateFactory.zoomTo(15));
+                    googleMap.animateCamera(CameraUpdateFactory.zoomTo(17));
             }
 
             }
@@ -203,11 +201,10 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
             public void onLocationChanged(Location location) {
 
                 if(location.getAccuracy() > 0 && location.getAccuracy() < 20) {
+
                     gpsProviderReady = true;
                     latitude = location.getLatitude();
                     longitude = location.getLongitude();
-                    //  Toast.makeText(getActivity(), location.getAccuracy() + " " + location.getProvider(), Toast.LENGTH_SHORT).show();
-
                     System.out.println(location.getAccuracy() + " " + location.getProvider());
                     myCar.setCarId(CARD_ID);
                     myCar.setLat(latitude);
@@ -219,6 +216,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
                     //    marker.hideInfoWindow();
                     marker.showInfoWindow();
                     googleMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(latitude, longitude)));
+                    googleMap.animateCamera(CameraUpdateFactory.zoomTo(17));
                 }else{
                     gpsProviderReady =false;
                 }

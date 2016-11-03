@@ -84,8 +84,6 @@ public class MainActivity extends AppCompatActivity
     private Double frontDataPercentage = 0.0;
     private Double backDataPercentage = 0.0;
     private int dataToDisplay = 0;
-    Timer timer;
-    Timer timer2;
     private final String CARD_ID = "Xbee1";
     private Snackbar snackbar2, snackbarOffline;
     private TwoProgressDialog twoProgressDialog;
@@ -188,10 +186,8 @@ public class MainActivity extends AppCompatActivity
                 try {
 
                     while(twoProgressDialog.isShowing()){
-                        if(!(frontDataPercentage.intValue() == 0))
-                            twoProgressDialog.setProgress(frontDataPercentage.intValue());
 
-                        if(!(backDataPercentage.intValue() == 0))
+                            twoProgressDialog.setProgress(frontDataPercentage.intValue());
                             twoProgressDialog.setSecondaryProgress(backDataPercentage.intValue());
 
                         sleep(100);
@@ -308,13 +304,15 @@ public class MainActivity extends AppCompatActivity
                             try {
 
                                 //Assigning temp sensors data
-                                String[] sensorData = positionData[3].split("$");
+                                String[] sensorData = positionData[3].split("%");
                                 frontSensor = sensorData[0];
                                 backSensor = sensorData[1];
                                 frontSensorNum = Double.parseDouble(frontSensor);
                                 backSensorNum = Double.parseDouble(backSensor);
-                                frontDataPercentage = 1.0/(frontSensorNum / distance) * 100;
-                                backDataPercentage = 1.0/(backSensorNum / distance) * 100;
+                                if(!(frontSensorNum == 0.0))
+                                    frontDataPercentage = ((distance - frontSensorNum )/ distance) * 100;
+                                if(!(backSensorNum == 0.0))
+                                backDataPercentage = ((distance - backSensorNum) / distance) * 100;
 
 
                             } catch (Exception e) {
@@ -324,7 +322,7 @@ public class MainActivity extends AppCompatActivity
                             lat = Double.parseDouble(tempLat);
                             lon = Double.parseDouble(tempLon);
 
-                            if (!CarList.isEmpty()) {
+                            if (!CarList.isEmpty() ) {
                                 for (int i = 0; i < CarList.size(); i++) {
                                     if (CarList.get(i).getCarId().equals(carID)) {
                                         CarList.get(i).setLon(lon);
@@ -342,7 +340,7 @@ public class MainActivity extends AppCompatActivity
 
                                         float distanceBetween = myCarsPosition.distanceTo(nextCarPosition);
 
-                                        if (distanceBetween < 15 || distanceBetween < 20) {
+                                        if ((distanceBetween < 15 || distanceBetween < 20 )&& CarList.get(i).getCurrentSpeed() > 0.0) {
 
                                             mBuilder.setContentTitle("Proximity Alert!");
                                             mBuilder.setPriority(Notification.PRIORITY_MAX);
@@ -351,11 +349,15 @@ public class MainActivity extends AppCompatActivity
                                             notificationManager.notify(0, mBuilder.build());
                                             CarList.get(i).setDistanceBetween(distanceBetween);
                                             distanceBetween = 0;
+
+                                        }else if(distanceBetween != 0.0){
                                             CarList.get(i).setDistanceBetween(distanceBetween);
+                                            distanceBetween = 0;
+
                                         }
 
                                         break;
-                                    } else if (CarList.size() - 1 == i && carId != CARD_ID) {
+                                    } else if (CarList.size() - 1 == i && carId != CARD_ID && carID.contains("Xbee")) {
                                         Car newCar = new Car(lat, lon, carID, false);
                                         CarList.add(newCar);
                                         System.out.println("------------------------------Carro agrergado--------------------------");
@@ -384,8 +386,12 @@ public class MainActivity extends AppCompatActivity
                                 backSensor = sensorData[1];
                                 frontSensorNum = Double.parseDouble(frontSensor);
                                 backSensorNum = Double.parseDouble(backSensor);
-                                frontDataPercentage = ((distance - frontSensorNum )/ distance) * 100;
-                                backDataPercentage = ((distance - backSensorNum) / distance) * 100;
+                                if(!(frontSensorNum == 0.0)) {
+                                    frontDataPercentage = ((distance - frontSensorNum) / distance) * 100;
+                                }
+                                if(!(backSensorNum == 0.0)) {
+                                    backDataPercentage = ((distance - backSensorNum) / distance) * 100;
+                                }
 
                             }catch(Exception e){
 
