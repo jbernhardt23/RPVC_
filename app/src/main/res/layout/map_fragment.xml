@@ -41,6 +41,26 @@
             android:layout_above="@+id/floatingActionButton"
             android:layout_centerHorizontal="true" />
 
+        <ToggleButton
+            android:text="ToggleButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/panicToggle"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentEnd="true"
+            android:onClick="onToggleClicked"
+            android:checked="false" />
+
+        <TextView
+            android:text="TextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/panicToggle"
+            android:layout_alignStart="@+id/panicToggle"
+            android:layout_marginStart="13dp"
+            android:id="@+id/sensorText" />
+
+
     </RelativeLayout>
 
 

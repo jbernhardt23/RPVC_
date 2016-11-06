@@ -8,17 +8,18 @@ public class Car {
 
     private double lat, lon, currentSpeed;
     private boolean timer = false;
-    private boolean  carCrashed = false;
+    private String  carCrashed = "Active";
     private String carId;
 
 
     private float distanceBetween;
 
-    public Car(double lat, double lon, String carId, boolean timer) {
+    public Car(double lat, double lon, String carId, boolean timer, String carCrashed) {
         this.lat = lat;
         this.lon = lon;
         this.carId = carId;
         this.timer = timer;
+        this.carCrashed = carCrashed;
     }
 
     public Car(){
@@ -64,11 +65,11 @@ public class Car {
         this.currentSpeed = currentSpeed;
     }
 
-    public boolean isCarCrashed() {
+    public String getCarCrashed() {
         return carCrashed;
     }
 
-    public void setCarCrashed(boolean carCrashed) {
+    public void setCarCrashed(String carCrashed) {
         this.carCrashed = carCrashed;
     }
 

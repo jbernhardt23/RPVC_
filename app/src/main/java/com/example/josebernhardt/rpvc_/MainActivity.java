@@ -1,12 +1,10 @@
 package com.example.josebernhardt.rpvc_;
 
 import android.app.FragmentManager;
-
 import android.app.Notification;
 import android.graphics.Color;
 import android.app.FragmentTransaction;
 import android.app.NotificationManager;
-
 import android.app.ProgressDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -16,9 +14,11 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
-
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.location.Location;
-
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -37,9 +37,12 @@ import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.animation.Animation;
+import android.view.animation.RotateAnimation;
 import android.widget.Button;
-
+import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.ToggleButton;
 
 
 import java.io.ByteArrayOutputStream;
@@ -49,7 +52,6 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.Timer;
 import java.util.UUID;
 
 
@@ -84,11 +86,13 @@ public class MainActivity extends AppCompatActivity
     private Double frontDataPercentage = 0.0;
     private Double backDataPercentage = 0.0;
     private int dataToDisplay = 0;
-    private final String CARD_ID = "Xbee1";
+    private static final String CARD_ID = "Xbee1";
     private Snackbar snackbar2, snackbarOffline;
     private TwoProgressDialog twoProgressDialog;
     private String frontSensor ="0";
     private String backSensor ="0";
+
+
 
     //Two instances of the fragments objects we are using
     private GmapFragment map = new GmapFragment();
@@ -98,11 +102,17 @@ public class MainActivity extends AppCompatActivity
     private Handler deleteOldCarsHandler = new Handler();
     private Handler refreshListHandler = new Handler();
 
+    private Car myCar = GmapFragment.myCar;
+
+
+
+
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
 
         //BT filters to manage connection status
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_ACL_DISCONNECTED);
@@ -154,14 +164,49 @@ public class MainActivity extends AppCompatActivity
         snackbarView.setBackgroundColor(Color.parseColor("#b71c1c"));
         snackbarOffline.show();
 
+
         //Starting checks cars runnable to see who is active
         deleteOldCarsHandler.postDelayed(checkCarsRunnable, 5000);
         refreshListHandler.postDelayed(refreshListRunnable, 1000);
 
 
+    }
+
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
 
     }
 
+
+    /**
+     * Handling toggle events that will send boradcast whenever a Car is on panic
+     * @param view
+     */
+    public void onToggleClicked(View view){
+
+            if(((ToggleButton) view).isChecked()) {
+                AlertDialog alertDialog = new AlertDialog.Builder(MainActivity.this).create();
+                alertDialog.setTitle("Sending panic alert!");
+                alertDialog.setMessage("Marking ON will alert all Cars of you current" +
+                        " situation");
+                alertDialog.setButton(AlertDialog.BUTTON_NEGATIVE, "OK",
+                        new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int which) {
+                                dialog.dismiss();
+                                myCar.setCarCrashed("Down");
+                            }
+                        });
+                alertDialog.show();
+
+            } else {
+                myCar.setCarCrashed("Active");
+            }
+
+
+    }
 
 
     /**
@@ -272,7 +317,6 @@ public class MainActivity extends AppCompatActivity
             byte[] writeBuf = (byte[]) msg.obj;
             int begin = (int) msg.arg1;
             int end = (int) msg.arg2;
-            Car myCar;
 
              //Set notifications alerts
             NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
@@ -299,12 +343,12 @@ public class MainActivity extends AppCompatActivity
                             carID = positionData[0];
                             String tempLat = positionData[1];
                             String tempLon = positionData[2];
-
+                            String carPanic = positionData[3];
 
                             try {
 
                                 //Assigning temp sensors data
-                                String[] sensorData = positionData[3].split("%");
+                                String[] sensorData = positionData[4].split("%");
                                 frontSensor = sensorData[0];
                                 backSensor = sensorData[1];
                                 frontSensorNum = Double.parseDouble(frontSensor);
@@ -327,6 +371,7 @@ public class MainActivity extends AppCompatActivity
                                     if (CarList.get(i).getCarId().equals(carID)) {
                                         CarList.get(i).setLon(lon);
                                         CarList.get(i).setLat(lat);
+                                        CarList.get(i).setCarCrashed(carPanic);
                                         CarList.get(i).setInicialTimer(true);
 
                                         //Compare if current car is close to my Car
@@ -358,23 +403,23 @@ public class MainActivity extends AppCompatActivity
 
                                         break;
                                     } else if (CarList.size() - 1 == i && carId != CARD_ID && carID.contains("Xbee")) {
-                                        Car newCar = new Car(lat, lon, carID, false);
+                                        Car newCar = new Car(lat, lon, carID, false, "Active");
                                         CarList.add(newCar);
-                                        System.out.println("------------------------------Carro agrergado--------------------------");
+
 
 
                                     }
                                 }
                             } else if (carID.contains("Xbee")) {
                                 //Here we add a new car to the newtork
-                                Car newCar = new Car(lat, lon, carID, false);
+                                Car newCar = new Car(lat, lon, carID, false, "Active");
                                 CarList.add(newCar);
                                 mBuilder.setContentTitle("New car");
                                 mBuilder.setPriority(Notification.PRIORITY_MAX);
                                 mBuilder.setContentText("Car: " + carID
                                         + " has joined!");
                                 notificationManager.notify(0, mBuilder.build());
-                                System.out.println("------------------------------Carro agrergado---------------------------");
+
 
                             }
                         }else if(writeMessage.contains("!")){
@@ -559,6 +604,8 @@ public class MainActivity extends AppCompatActivity
                         outputStream.write(myCar.getCarId().getBytes());
                         outputStream.write(",".getBytes());
                         outputStream.write(myCar.toString().getBytes());
+                        outputStream.write(",".getBytes());
+                        outputStream.write(myCar.getCarCrashed().getBytes());
                         byte dataSend[] = outputStream.toByteArray();
                         write(dataSend);
 

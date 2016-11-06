@@ -7,6 +7,12 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -21,6 +27,9 @@ import android.support.v7.app.AlertDialog;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.Animation;
+import android.view.animation.RotateAnimation;
+import android.widget.TextView;
 
 
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -42,14 +51,14 @@ import java.util.List;
 /**
  * Created by jose on 30/04/16.
  */
-public class GmapFragment extends Fragment implements OnMapReadyCallback {
+public class GmapFragment extends Fragment implements OnMapReadyCallback, SensorEventListener {
 
     private  List<Car> CarList;
     public static Car myCar = new Car();
     private Marker marker, mMarker;
     MapFragment fragment;
     private GoogleMap gMap;
-    ProgressDialog dialog;
+    private ProgressDialog dialog;
     View v;
     Thread putCar;
     private List<Marker> markersList = new ArrayList<>();
@@ -59,11 +68,16 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
     private double longitude;
     private boolean gpsProviderReady = false;
     private boolean flag = false;
-    private Location lastKnownLocation;
-    private final String CARD_ID = "Xbee1";
+    private static final String CARD_ID = "Xbee1";
     private AlertDialog.Builder builder;
     private AlertDialog alertDialog;
     private ProgressDialog dialogMapLoading;
+    private Bitmap icon;
+    private SensorManager mSensorManager;
+    private float degree = 0f;
+
+    // record the compass picture angle turned
+    private float currentDegree = 0f;
 
 
     @Override
@@ -71,10 +85,28 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
         super.onCreate(savedInstanceState);
 
       //  dialogMapLoading  = ProgressDialog.show(getActivity(), "", "Getting your position...", true, false);
+        icon = BitmapFactory.decodeResource(getActivity().getApplicationContext().getResources(),
+                R.drawable.mapicon);
 
-
+        // initialize your android device sensor capabilities
+        mSensorManager = (SensorManager) getActivity().getSystemService(Context.SENSOR_SERVICE);
     }
 
+
+
+    @Override
+    public void onPause() {
+        super.onPause();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+
+        // for the system's orientation sensor registered listeners
+        mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION),
+                SensorManager.SENSOR_DELAY_UI);
+    }
 
     @Nullable
     @Override
@@ -113,6 +145,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
         builder = new AlertDialog.Builder(getActivity());
         gMap = googleMap;
 
+        //TODO this is not working properly, app crash requesting permissions first time
         permissions();
 
         putCar = new putCar();
@@ -122,10 +155,10 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
         marker = googleMap.addMarker(new MarkerOptions()
                 .title("Car:" + " " + CARD_ID)
                 .position(pos)
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
+                .icon(BitmapDescriptorFactory.fromResource(R.drawable.mapicon))
+                .rotation(degree));
 
-        // locationManager = (LocationManager) getActivity().getSystemService(Context.LOCATION_SERVICE);
-        googleMap.animateCamera(CameraUpdateFactory.zoomTo(5));
+        googleMap.animateCamera(CameraUpdateFactory.zoomTo(17));
         googleMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
         googleMap.getUiSettings().setZoomGesturesEnabled(true);
         googleMap.getUiSettings().setZoomControlsEnabled(true);
@@ -138,7 +171,6 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
                 if(!gpsProviderReady) {
 
                     latitude = location.getLatitude();
-                    System.out.println(location.getAccuracy() + " " + location.getProvider());
                     longitude = location.getLongitude();
                     myCar.setCarId(CARD_ID);
                     myCar.setLat(latitude);
@@ -147,8 +179,9 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
                     LatLng pos = new LatLng(latitude, longitude);
                     marker.setPosition(pos);
                     marker.setSnippet("Car Speed: " + (location.getSpeed() * 3600 / 1000 + "km/h"));
-                    //    marker.hideInfoWindow();
+                    marker.hideInfoWindow();
                     marker.showInfoWindow();
+                    marker.setRotation(degree);
                     googleMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(latitude, longitude)));
                     googleMap.animateCamera(CameraUpdateFactory.zoomTo(17));
             }
@@ -210,6 +243,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
                     myCar.setLat(latitude);
                     myCar.setLon(longitude);
                     myCar.setCurrentSpeed(location.getSpeed());
+                    marker.setRotation(degree);
                     LatLng pos = new LatLng(latitude, longitude);
                     marker.setPosition(pos);
                     marker.setSnippet("Car Speed: " + (location.getSpeed() * 3600 / 1000 + "km/h"));
@@ -259,6 +293,26 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
 
     }
 
+    /**
+     * Sensor listener methos that recieves all new sensor update changes
+     * @param event
+     */
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+
+        // get the angle around the z-axis rotated
+        degree = Math.round(event.values[0]);
+
+        TextView tvHeading = (TextView) getView().findViewById(R.id.sensorText);
+        tvHeading.setText("Heading: " + Float.toString(degree) + " degrees");
+
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        // not in use
+
+    }
 
     /***
      * Main handler that takes care of drawing the markers on the Map
@@ -384,11 +438,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback {
     }
 
 
-    @Override
-    public void onResume() {
-        super.onResume();
 
-    }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
