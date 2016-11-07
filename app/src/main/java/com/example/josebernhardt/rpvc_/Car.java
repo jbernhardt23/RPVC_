@@ -10,9 +10,8 @@ public class Car {
     private boolean timer = false;
     private String  carCrashed = "Active";
     private String carId;
-
-
     private float distanceBetween;
+    private float bearing;
 
     public Car(double lat, double lon, String carId, boolean timer, String carCrashed) {
         this.lat = lat;
@@ -24,6 +23,14 @@ public class Car {
 
     public Car(){
 
+    }
+
+    public float getBearing() {
+        return bearing;
+    }
+
+    public void setBearing(float bearing) {
+        this.bearing = bearing;
     }
 
     public float getDistanceBetween() {

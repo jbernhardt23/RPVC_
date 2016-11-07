@@ -9,10 +9,6 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
-import android.hardware.SensorManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -27,8 +23,6 @@ import android.support.v7.app.AlertDialog;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.animation.Animation;
-import android.view.animation.RotateAnimation;
 import android.widget.TextView;
 
 
@@ -51,7 +45,7 @@ import java.util.List;
 /**
  * Created by jose on 30/04/16.
  */
-public class GmapFragment extends Fragment implements OnMapReadyCallback, SensorEventListener {
+public class GmapFragment extends Fragment implements OnMapReadyCallback{
 
     private  List<Car> CarList;
     public static Car myCar = new Car();
@@ -73,11 +67,13 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback, Sensor
     private AlertDialog alertDialog;
     private ProgressDialog dialogMapLoading;
     private Bitmap icon;
-    private SensorManager mSensorManager;
-    private float degree = 0f;
-
-    // record the compass picture angle turned
-    private float currentDegree = 0f;
+    TextView tvHeading;
+    private float GPSbearing;
+    private Location prevGPSLoc;
+    private Location newGPSLoc;
+    private float networkBearing;
+    private Location prevNetworkLoc;
+    private Location newNetworkLoc;
 
 
     @Override
@@ -85,11 +81,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback, Sensor
         super.onCreate(savedInstanceState);
 
       //  dialogMapLoading  = ProgressDialog.show(getActivity(), "", "Getting your position...", true, false);
-        icon = BitmapFactory.decodeResource(getActivity().getApplicationContext().getResources(),
-                R.drawable.mapicon);
 
-        // initialize your android device sensor capabilities
-        mSensorManager = (SensorManager) getActivity().getSystemService(Context.SENSOR_SERVICE);
     }
 
 
@@ -103,9 +95,6 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback, Sensor
     public void onResume() {
         super.onResume();
 
-        // for the system's orientation sensor registered listeners
-        mSensorManager.registerListener(this, mSensorManager.getDefaultSensor(Sensor.TYPE_ORIENTATION),
-                SensorManager.SENSOR_DELAY_UI);
     }
 
     @Nullable
@@ -136,6 +125,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback, Sensor
                 gMap = ((MapFragment) getFragmentManager().
                         findFragmentById(R.id.map)).getMap();
             }*/
+        tvHeading = (TextView) getView().findViewById(R.id.sensorText);
 
     }
 
@@ -151,12 +141,12 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback, Sensor
         putCar = new putCar();
         putCar.start();
 
+        //Initial Set up
         LatLng pos = new LatLng(0, 0);
         marker = googleMap.addMarker(new MarkerOptions()
                 .title("Car:" + " " + CARD_ID)
                 .position(pos)
-                .icon(BitmapDescriptorFactory.fromResource(R.drawable.mapicon))
-                .rotation(degree));
+                .icon(BitmapDescriptorFactory.fromResource(R.drawable.redmapicon)));
 
         googleMap.animateCamera(CameraUpdateFactory.zoomTo(17));
         googleMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
@@ -170,49 +160,44 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback, Sensor
 
                 if(!gpsProviderReady) {
 
+                    //Updating position to get Bearing
+                    newNetworkLoc= location;
+                    if(prevNetworkLoc == null)
+                        prevNetworkLoc = location;
+
+                    networkBearing = prevNetworkLoc.bearingTo(newNetworkLoc);
                     latitude = location.getLatitude();
                     longitude = location.getLongitude();
+
                     myCar.setCarId(CARD_ID);
                     myCar.setLat(latitude);
                     myCar.setLon(longitude);
                     myCar.setCurrentSpeed(location.getSpeed());
+
                     LatLng pos = new LatLng(latitude, longitude);
                     marker.setPosition(pos);
                     marker.setSnippet("Car Speed: " + (location.getSpeed() * 3600 / 1000 + "km/h"));
                     marker.hideInfoWindow();
                     marker.showInfoWindow();
-                    marker.setRotation(degree);
+
+                    if(!(networkBearing == 0.0)) {
+                        marker.setAnchor(0.5f, 0.5f);
+                        marker.setRotation(networkBearing);
+                        myCar.setBearing(networkBearing);
+                    }
+
+                    tvHeading.setText(String.valueOf(networkBearing));
+
+                    marker.setAnchor(0.5f,0.5f);
                     googleMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(latitude, longitude)));
                     googleMap.animateCamera(CameraUpdateFactory.zoomTo(17));
+                    prevNetworkLoc = newNetworkLoc;
             }
 
             }
 
             @Override
             public void onProviderDisabled(String s) {
-
-
-            /*    AlertDialog alertDialog = new AlertDialog.Builder(getActivity()).create();
-                alertDialog.setTitle("Network provider lost");
-                alertDialog.setMessage("Seems that you have lost connection with your carrier" +
-                        " Please check your signal. ");
-                alertDialog.setCancelable(false);
-                alertDialog.setCanceledOnTouchOutside(false);
-                alertDialog.setButton(AlertDialog.BUTTON_POSITIVE, "OK",
-                        new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog, int which) {
-                                dialog.dismiss();
-                                Intent intent = new Intent(Settings.ACTION_MANAGE_APPLICATIONS_SETTINGS);
-                                startActivity(intent);
-                            }
-                        });
-                alertDialog.setButton(AlertDialog.BUTTON_NEGATIVE, "Cancel", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        dialog.dismiss();
-                    }
-                });
-                alertDialog.show();*/
 
 
             }
@@ -235,15 +220,27 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback, Sensor
 
                 if(location.getAccuracy() > 0 && location.getAccuracy() < 20) {
 
+                    //Updating position to get Bearing
+                    newGPSLoc = location;
+                    if(prevGPSLoc == null){
+                        prevGPSLoc = location;
+                    }
+                    GPSbearing = prevGPSLoc.bearingTo(newGPSLoc);
                     gpsProviderReady = true;
                     latitude = location.getLatitude();
                     longitude = location.getLongitude();
-                    System.out.println(location.getAccuracy() + " " + location.getProvider());
                     myCar.setCarId(CARD_ID);
                     myCar.setLat(latitude);
                     myCar.setLon(longitude);
                     myCar.setCurrentSpeed(location.getSpeed());
-                    marker.setRotation(degree);
+
+                    if (!(GPSbearing == 0.0)) {
+                        marker.setAnchor(0.5f, 0.5f);
+                        marker.setRotation(GPSbearing);
+                        myCar.setBearing(GPSbearing);
+                    }
+                    tvHeading.setText(String.valueOf(GPSbearing));
+
                     LatLng pos = new LatLng(latitude, longitude);
                     marker.setPosition(pos);
                     marker.setSnippet("Car Speed: " + (location.getSpeed() * 3600 / 1000 + "km/h"));
@@ -251,6 +248,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback, Sensor
                     marker.showInfoWindow();
                     googleMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(latitude, longitude)));
                     googleMap.animateCamera(CameraUpdateFactory.zoomTo(17));
+                    prevGPSLoc = newGPSLoc;
                 }else{
                     gpsProviderReady =false;
                 }
@@ -293,29 +291,9 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback, Sensor
 
     }
 
-    /**
-     * Sensor listener methos that recieves all new sensor update changes
-     * @param event
-     */
-    @Override
-    public void onSensorChanged(SensorEvent event) {
-
-        // get the angle around the z-axis rotated
-        degree = Math.round(event.values[0]);
-
-        TextView tvHeading = (TextView) getView().findViewById(R.id.sensorText);
-        tvHeading.setText("Heading: " + Float.toString(degree) + " degrees");
-
-    }
-
-    @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {
-        // not in use
-
-    }
 
     /***
-     * Main handler that takes care of drawing the markers on the Map
+     * Main handler that takes care of drawing the cars on the Map
      * depending on the current List of Cars
      */
     private  Handler displayHandler = new Handler() {
@@ -340,16 +318,18 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback, Sensor
                                 marker = gMap.addMarker(new MarkerOptions()
                                         .title("Car:" + " " + CARD_ID)
                                         .position(pos)
-                                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
+                                        .icon(BitmapDescriptorFactory.fromResource(R.drawable.redmapicon)));
 
                                 for (int k = 0; k < CarList.size(); k++) {
                                     LatLng pos2 = new LatLng(CarList.get(k).getLat(), CarList.get(k).getLon());
                                     mMarker = gMap.addMarker(new MarkerOptions()
                                             .title("Car:" + " " + CarList.get(k).getCarId())
                                             .snippet("Car Speed: " + CarList.get(k).getCurrentSpeed() + "KPH")
-                                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE))
+                                            .icon(BitmapDescriptorFactory.fromResource(R.drawable.mapicon))
                                             .position(pos2));
 
+                                    mMarker.setAnchor(0.5f, 0.5f);
+                                    mMarker.setRotation(CarList.get(i).getBearing());
                                     mMarker.showInfoWindow();
                                     markersList.add(mMarker);
                                 }
@@ -363,9 +343,11 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback, Sensor
                             mMarker = gMap.addMarker(new MarkerOptions()
                                     .title("Car:" + " " + CarList.get(i).getCarId())
                                     .snippet("Car Speed: " + CarList.get(i).getCurrentSpeed() + "KPH")
-                                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE))
+                                    .icon(BitmapDescriptorFactory.fromResource(R.drawable.mapicon))
                                     .position(pos));
 
+                            mMarker.setAnchor(0.5f, 0.5f);
+                            mMarker.setRotation(CarList.get(i).getBearing());
                             mMarker.showInfoWindow();
                             markersList.add(mMarker);
                         }
@@ -381,7 +363,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback, Sensor
                     marker = gMap.addMarker(new MarkerOptions()
                             .title("Car:" + " " + CARD_ID)
                             .position(pos)
-                            .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
+                            .icon(BitmapDescriptorFactory.fromResource(R.drawable.redmapicon)));
 
                     marker.showInfoWindow();
 

@@ -64,7 +64,7 @@ public class MyAdapter extends BaseAdapter {
         cardIdText.setText(String.valueOf(CarList.get(position).getCarId()));
 
         speedText = (TextView) vi.findViewById(R.id.carSpeedText);
-        speedText.setText(">Speed: "  + String.valueOf(String.format("%.2f",CarList.get(position).getCurrentSpeed())) + " Km/h");
+        speedText.setText(">Speed: "  + String.valueOf(String.valueOf(Math.round(CarList.get(position).getCurrentSpeed()))) + " Km/h");
 
         distanceText = (TextView) vi.findViewById(R.id.distanceText);
         distanceText.setText(">Distance: "  + String.valueOf(String.format("%.2f",CarList.get(position).getDistanceBetween())) + " m");

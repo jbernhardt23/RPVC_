@@ -92,8 +92,6 @@ public class MainActivity extends AppCompatActivity
     private String frontSensor ="0";
     private String backSensor ="0";
 
-
-
     //Two instances of the fragments objects we are using
     private GmapFragment map = new GmapFragment();
     private CommandCenter command = new CommandCenter();
@@ -176,7 +174,6 @@ public class MainActivity extends AppCompatActivity
     @Override
     protected void onResume() {
         super.onResume();
-
 
     }
 
@@ -337,18 +334,19 @@ public class MainActivity extends AppCompatActivity
                         myCar = GmapFragment.myCar;
                         if(writeMessage.contains("/")) {
                             writeMessage = writeMessage.replace("/", ",");
-                            String[] positionData = writeMessage.split(",");
+                            String[] CarsData = writeMessage.split(",");
 
                             //Assigning temp info of incoming car
-                            carID = positionData[0];
-                            String tempLat = positionData[1];
-                            String tempLon = positionData[2];
-                            String carPanic = positionData[3];
+                            carID = CarsData[0];
+                            String tempLat = CarsData[1];
+                            String tempLon = CarsData[2];
+                            String carPanic = CarsData[3];
+                            String carBearing = CarsData[4];
 
                             try {
 
                                 //Assigning temp sensors data
-                                String[] sensorData = positionData[4].split("%");
+                                String[] sensorData = CarsData[4].split("%");
                                 frontSensor = sensorData[0];
                                 backSensor = sensorData[1];
                                 frontSensorNum = Double.parseDouble(frontSensor);
@@ -373,6 +371,7 @@ public class MainActivity extends AppCompatActivity
                                         CarList.get(i).setLat(lat);
                                         CarList.get(i).setCarCrashed(carPanic);
                                         CarList.get(i).setInicialTimer(true);
+                                        CarList.get(i).setBearing(Float.parseFloat(carBearing));
 
                                         //Compare if current car is close to my Car
                                         Location nextCarPosition = new Location("Point A");
@@ -571,7 +570,7 @@ public class MainActivity extends AppCompatActivity
 
     }
 
-    //Thread sending Car info
+    //Thread sending Cars info
     private class SendData extends Thread {
 
         private BluetoothSocket mmSocket;
@@ -595,17 +594,20 @@ public class MainActivity extends AppCompatActivity
 
             while (true && !isInterrupted()) {
 
-
                 myCar = GmapFragment.myCar;
                 if (myCar.getLat() != 0 && myCar.getLon() != 0 && myCar != null) {
                     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
                     try {
+                        //Preparing buffer to be sent
                         outputStream.write("/".getBytes());
                         outputStream.write(myCar.getCarId().getBytes());
                         outputStream.write(",".getBytes());
                         outputStream.write(myCar.toString().getBytes());
                         outputStream.write(",".getBytes());
                         outputStream.write(myCar.getCarCrashed().getBytes());
+                        outputStream.write(",".getBytes());
+                        outputStream.write(String.valueOf(myCar.getBearing()).getBytes());
+
                         byte dataSend[] = outputStream.toByteArray();
                         write(dataSend);
 
