@@ -60,6 +60,15 @@
             android:layout_marginStart="13dp"
             android:id="@+id/sensorText" />
 
+        <TextView
+            android:text="TextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@+id/sensorText"
+            android:layout_alignStart="@+id/sensorText"
+            android:layout_marginTop="13dp"
+            android:id="@+id/alertWhereText" />
+
 
     </RelativeLayout>
 

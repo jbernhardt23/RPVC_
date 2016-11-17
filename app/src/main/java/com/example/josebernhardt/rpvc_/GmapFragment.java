@@ -62,16 +62,16 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
     private double longitude;
     private boolean gpsProviderReady = false;
     private boolean flag = false;
-    private static final String CARD_ID = "Xbee1";
+    private static final String CARD_ID = "Xbee3";
     private AlertDialog.Builder builder;
     private AlertDialog alertDialog;
     private ProgressDialog dialogMapLoading;
     private Bitmap icon;
     TextView tvHeading;
-    private float GPSbearing;
+    private static float GPSbearing;
     private Location prevGPSLoc;
     private Location newGPSLoc;
-    private float networkBearing;
+    private static float networkBearing;
     private Location prevNetworkLoc;
     private Location newNetworkLoc;
 
@@ -138,6 +138,8 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
         //TODO this is not working properly, app crash requesting permissions first time
         permissions();
 
+
+
         putCar = new putCar();
         putCar.start();
 
@@ -147,7 +149,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
                 .title("Car:" + " " + CARD_ID)
                 .position(pos)
                 .icon(BitmapDescriptorFactory.fromResource(R.drawable.redmapicon)));
-
+        googleMap.getUiSettings().setRotateGesturesEnabled(false);
         googleMap.animateCamera(CameraUpdateFactory.zoomTo(17));
         googleMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
         googleMap.getUiSettings().setZoomGesturesEnabled(true);
@@ -186,7 +188,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
                         myCar.setBearing(networkBearing);
                     }
 
-                    tvHeading.setText(String.valueOf(networkBearing));
+                  //  tvHeading.setText(String.valueOf(networkBearing));
 
                     marker.setAnchor(0.5f,0.5f);
                     googleMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(latitude, longitude)));
@@ -238,8 +240,9 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
                         marker.setAnchor(0.5f, 0.5f);
                         marker.setRotation(GPSbearing);
                         myCar.setBearing(GPSbearing);
+                        tvHeading.setText(String.valueOf(myCar.getBearing()));
                     }
-                    tvHeading.setText(String.valueOf(GPSbearing));
+
 
                     LatLng pos = new LatLng(latitude, longitude);
                     marker.setPosition(pos);
@@ -310,6 +313,9 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
 
                                 LatLng pos = new LatLng(CarList.get(i).getLat(), CarList.get(i).getLon());
                                 markersList.get(i).setPosition(pos);
+                                markersList.get(i).setAnchor(0.5f, 0.5f);
+                                markersList.get(i).setRotation(CarList.get(i).getBearing());
+
                             } else {
                                 gMap.clear();
                                 markersList.clear();

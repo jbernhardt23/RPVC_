@@ -14,10 +14,6 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
-import android.hardware.SensorManager;
 import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
@@ -37,8 +33,6 @@ import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.animation.Animation;
-import android.view.animation.RotateAnimation;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -86,7 +80,7 @@ public class MainActivity extends AppCompatActivity
     private Double frontDataPercentage = 0.0;
     private Double backDataPercentage = 0.0;
     private int dataToDisplay = 0;
-    private static final String CARD_ID = "Xbee1";
+    private static final String CARD_ID = "Xbee3";
     private Snackbar snackbar2, snackbarOffline;
     private TwoProgressDialog twoProgressDialog;
     private String frontSensor ="0";
@@ -96,14 +90,16 @@ public class MainActivity extends AppCompatActivity
     private GmapFragment map = new GmapFragment();
     private CommandCenter command = new CommandCenter();
 
-    Handler pdCanceller = new Handler();
+    private Handler pdCanceller = new Handler();
     private Handler deleteOldCarsHandler = new Handler();
     private Handler refreshListHandler = new Handler();
-
     private Car myCar = GmapFragment.myCar;
-
-
-
+    private TextView statusText;
+    private NotificationManager notificationManager;
+    private NotificationManager notificationManager2;
+    private NotificationCompat.Builder mBuilder;
+    private NotificationCompat.Builder leftCarBuilder;
+    private AlertDialog panicAlertDialog;
 
 
 
@@ -162,6 +158,24 @@ public class MainActivity extends AppCompatActivity
         snackbarView.setBackgroundColor(Color.parseColor("#b71c1c"));
         snackbarOffline.show();
 
+        //Setting notification objects for alerts of proximity
+        notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        mBuilder = new NotificationCompat.Builder(MainActivity.this);
+        mBuilder.setSmallIcon(R.drawable.car_icon);
+        mBuilder.setSound(Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.censor));
+
+        //Object for car left notification manger
+        notificationManager2 = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        leftCarBuilder = new NotificationCompat.Builder(MainActivity.this);
+        leftCarBuilder.setSmallIcon(R.drawable.car_icon);
+        leftCarBuilder.setContentTitle("Car out of range");
+        leftCarBuilder.setPriority(Notification.PRIORITY_MAX);
+
+        //Setting panic dialog to advise user of what will happen
+        panicAlertDialog = new AlertDialog.Builder(MainActivity.this).create();
+        panicAlertDialog.setTitle("Sending panic alert!");
+        panicAlertDialog.setMessage("Marking ON will alert all Cars of you current" +
+                " situation");
 
         //Starting checks cars runnable to see who is active
         deleteOldCarsHandler.postDelayed(checkCarsRunnable, 5000);
@@ -185,18 +199,15 @@ public class MainActivity extends AppCompatActivity
     public void onToggleClicked(View view){
 
             if(((ToggleButton) view).isChecked()) {
-                AlertDialog alertDialog = new AlertDialog.Builder(MainActivity.this).create();
-                alertDialog.setTitle("Sending panic alert!");
-                alertDialog.setMessage("Marking ON will alert all Cars of you current" +
-                        " situation");
-                alertDialog.setButton(AlertDialog.BUTTON_NEGATIVE, "OK",
+
+                panicAlertDialog.setButton(AlertDialog.BUTTON_NEGATIVE, "OK",
                         new DialogInterface.OnClickListener() {
                             public void onClick(DialogInterface dialog, int which) {
                                 dialog.dismiss();
                                 myCar.setCarCrashed("Down");
                             }
                         });
-                alertDialog.show();
+                panicAlertDialog.show();
 
             } else {
                 myCar.setCarCrashed("Active");
@@ -280,14 +291,9 @@ public class MainActivity extends AppCompatActivity
             if (!CarList.isEmpty()) {
                 for (int i = 0; i < CarList.size(); i++) {
                     if (!CarList.get(i).isTimer()) {
-                        NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-                        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(MainActivity.this);
-                        mBuilder.setSmallIcon(R.drawable.car_icon);
-                        mBuilder.setContentTitle("Car out of range");
-                        mBuilder.setPriority(Notification.PRIORITY_MAX);
-                        mBuilder.setContentText(CarList.get(i).getCarId()
+                        leftCarBuilder.setContentText(CarList.get(i).getCarId()
                                 + " has left network");
-                        notificationManager.notify(0, mBuilder.build());
+                        notificationManager2.notify(0, leftCarBuilder.build());
                         CarList.remove(i);
                     }
                 }
@@ -315,11 +321,9 @@ public class MainActivity extends AppCompatActivity
             int begin = (int) msg.arg1;
             int end = (int) msg.arg2;
 
-             //Set notifications alerts
-            NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-            NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(MainActivity.this);
-            mBuilder.setSmallIcon(R.drawable.car_icon);
-            mBuilder.setSound(Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.censor));
+
+            statusText = (TextView) findViewById(R.id.alertWhereText);
+
             String carID;
 
             switch (msg.what) {
@@ -382,19 +386,60 @@ public class MainActivity extends AppCompatActivity
                                         myCarsPosition.setLatitude(myCar.getLat());
                                         myCarsPosition.setLongitude(myCar.getLon());
 
+                                        float backAlert = myCar.getBearing() + 180;
+                                        float leftAlert = myCar.getBearing() + 90;
+                                        float rightAlert = myCar.getBearing() + 270;
                                         float distanceBetween = myCarsPosition.distanceTo(nextCarPosition);
 
-                                        if ((distanceBetween < 15 || distanceBetween < 20 )&& CarList.get(i).getCurrentSpeed() > 0.0) {
+                                        if ((distanceBetween <= 35 )) {
+                                            if(Float.parseFloat(carBearing) >= (backAlert  -15)
+                                                    && Float.parseFloat(carBearing)<= (backAlert + 15)){
+                                                statusText.setText("Vengo de frente tuyo");
+                                                mBuilder.setContentTitle("Proximity Alert!");
+                                                mBuilder.setPriority(Notification.PRIORITY_MAX);
+                                                mBuilder.setContentText(CarList.get(i).getCarId()
+                                                        + " is in front of you");
+                                                mBuilder.setSound(Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.carFront);
+                                                notificationManager.notify(0, mBuilder.build());
+                                            }else if(Float.parseFloat(carBearing) >= (myCar.getBearing() - 15)
+                                                    && Float.parseFloat(carBearing)<= (myCar.getBearing() + 15)) {
+                                                statusText.setText("Vengo por atra de ti");
+                                                mBuilder.setContentTitle("Proximity Alert!");
+                                                mBuilder.setPriority(Notification.PRIORITY_MAX);
+                                                mBuilder.setContentText(CarList.get(i).getCarId()
+                                                        + " is behind you");
+                                                mBuilder.setSound(Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.CarBehind));
+                                                notificationManager.notify(0, mBuilder.build());
 
-                                            mBuilder.setContentTitle("Proximity Alert!");
-                                            mBuilder.setPriority(Notification.PRIORITY_MAX);
-                                            mBuilder.setContentText(CarList.get(i).getCarId()
-                                                    + " is getting too close");
-                                            notificationManager.notify(0, mBuilder.build());
+                                            }else if(Float.parseFloat(carBearing) >= (leftAlert  - 15)
+                                                    && Float.parseFloat(carBearing)<= (leftAlert + 15)) {
+                                                statusText.setText("Vengo por la izquiera");
+                                                mBuilder.setContentTitle("Proximity Alert!");
+                                                mBuilder.setPriority(Notification.PRIORITY_MAX);
+                                                mBuilder.setContentText(CarList.get(i).getCarId()
+                                                        + " on your left");
+                                                mBuilder.setSound(Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.CarLeft));
+                                                notificationManager.notify(0, mBuilder.build());
+
+                                            }else if(Float.parseFloat(carBearing) >= (rightAlert  - 15)
+                                                    && Float.parseFloat(carBearing)<= (rightAlert + 15)){
+                                                statusText.setText("Vengo por la derecha");
+                                                mBuilder.setContentTitle("Proximity Alert!");
+                                                mBuilder.setPriority(Notification.PRIORITY_MAX);
+                                                mBuilder.setContentText(CarList.get(i).getCarId()
+                                                        + " on your left");
+                                                mBuilder.setSound(Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.CarRight));
+                                                notificationManager.notify(0, mBuilder.build());
+
+                                            } else{
+                                                statusText.setText("No soy amenaza");
+                                            }
+
                                             CarList.get(i).setDistanceBetween(distanceBetween);
                                             distanceBetween = 0;
 
-                                        }else if(distanceBetween != 0.0){
+
+                                        }else{
                                             CarList.get(i).setDistanceBetween(distanceBetween);
                                             distanceBetween = 0;
 
@@ -404,9 +449,7 @@ public class MainActivity extends AppCompatActivity
                                     } else if (CarList.size() - 1 == i && carId != CARD_ID && carID.contains("Xbee")) {
                                         Car newCar = new Car(lat, lon, carID, false, "Active");
                                         CarList.add(newCar);
-
-
-
+                                        
                                     }
                                 }
                             } else if (carID.contains("Xbee")) {
