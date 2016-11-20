@@ -237,16 +237,24 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
                     myCar.setCurrentSpeed(location.getSpeed());
 
                     if (!(GPSbearing == 0.0)) {
-                        marker.setAnchor(0.5f, 0.5f);
-                        marker.setRotation(GPSbearing);
-                        myCar.setBearing(GPSbearing);
-                        tvHeading.setText(String.valueOf(myCar.getBearing()));
+                        if(GPSbearing < 0.0){
+                            GPSbearing = GPSbearing + 360;
+                            marker.setAnchor(0.5f, 0.5f);
+                            marker.setRotation(GPSbearing);
+                            myCar.setBearing(GPSbearing);
+                            tvHeading.setText(String.valueOf(myCar.getBearing()));
+                        }else{
+                            marker.setAnchor(0.5f, 0.5f);
+                            marker.setRotation(GPSbearing);
+                            myCar.setBearing(GPSbearing);
+                            tvHeading.setText(String.valueOf(myCar.getBearing()));
+                        }
                     }
 
 
                     LatLng pos = new LatLng(latitude, longitude);
                     marker.setPosition(pos);
-                    marker.setSnippet("Car Speed: " + (location.getSpeed() * 3600 / 1000 + "km/h"));
+                    marker.setSnippet("Car Speed: " + String.format("%.2f",String.valueOf(location.getSpeed() * 3600 / 1000 ))+ "km/h");
                     //    marker.hideInfoWindow();
                     marker.showInfoWindow();
                     googleMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(latitude, longitude)));
@@ -392,7 +400,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
                     displayHandler.obtainMessage(2).sendToTarget();
                 }
                 try {
-                    Thread.sleep(200);
+                    Thread.sleep(400);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
