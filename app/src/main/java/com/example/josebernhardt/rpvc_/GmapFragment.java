@@ -178,17 +178,26 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
 
                     LatLng pos = new LatLng(latitude, longitude);
                     marker.setPosition(pos);
-                    marker.setSnippet("Car Speed: " + (location.getSpeed() * 3600 / 1000 + "km/h"));
-                    marker.hideInfoWindow();
-                    marker.showInfoWindow();
+                    marker.setSnippet("Car Speed: " + String.format("%.2f",location.getSpeed() * 3600 / 1000) + "km/h");
+                   // marker.hideInfoWindow();
+                  //  marker.showInfoWindow();
 
-                    if(!(networkBearing == 0.0)) {
-                        marker.setAnchor(0.5f, 0.5f);
-                        marker.setRotation(networkBearing);
-                        myCar.setBearing(networkBearing);
+                    if (!(networkBearing == 0.0)) {
+                        if(networkBearing < 0.0){
+                            networkBearing = networkBearing + 360;
+                            marker.setAnchor(0.5f, 0.5f);
+                            marker.setRotation(networkBearing);
+                            myCar.setBearing(networkBearing);
+                            tvHeading.setText(String.valueOf(myCar.getBearing()));
+                        }else{
+                            marker.setAnchor(0.5f, 0.5f);
+                            marker.setRotation(networkBearing);
+                            myCar.setBearing(networkBearing);
+                            tvHeading.setText(String.valueOf(myCar.getBearing()));
+                        }
                     }
 
-                  //  tvHeading.setText(String.valueOf(networkBearing));
+                    //  tvHeading.setText(String.valueOf(networkBearing));
 
                     marker.setAnchor(0.5f,0.5f);
                     googleMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(latitude, longitude)));
@@ -254,9 +263,9 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
 
                     LatLng pos = new LatLng(latitude, longitude);
                     marker.setPosition(pos);
-                    marker.setSnippet("Car Speed: " + String.format("%.2f",String.valueOf(location.getSpeed() * 3600 / 1000 ))+ "km/h");
+                    marker.setSnippet("Car Speed: " + String.format("%.2f",location.getSpeed() * 3600 / 1000) + "km/h");
                     //    marker.hideInfoWindow();
-                    marker.showInfoWindow();
+                   // marker.showInfoWindow();
                     googleMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(latitude, longitude)));
                     googleMap.animateCamera(CameraUpdateFactory.zoomTo(17));
                     prevGPSLoc = newGPSLoc;
@@ -344,7 +353,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
 
                                     mMarker.setAnchor(0.5f, 0.5f);
                                     mMarker.setRotation(CarList.get(i).getBearing());
-                                    mMarker.showInfoWindow();
+                                  //  mMarker.showInfoWindow();
                                     markersList.add(mMarker);
                                 }
                                 break;
@@ -362,7 +371,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
 
                             mMarker.setAnchor(0.5f, 0.5f);
                             mMarker.setRotation(CarList.get(i).getBearing());
-                            mMarker.showInfoWindow();
+                           // mMarker.showInfoWindow();
                             markersList.add(mMarker);
                         }
                     }
