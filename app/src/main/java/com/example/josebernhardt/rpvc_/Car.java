@@ -13,6 +13,9 @@ public class Car {
     private float distanceBetween;
     private float bearing;
 
+
+    private float accurracy;
+
     public Car(double lat, double lon, String carId, boolean timer, String carCrashed) {
         this.lat = lat;
         this.lon = lon;
@@ -24,6 +27,16 @@ public class Car {
     public Car(){
 
     }
+
+    public float getAccurracy() {
+        return accurracy;
+    }
+
+    public void setAccurracy(float accurracy) {
+        this.accurracy = accurracy;
+    }
+
+
 
     public float getBearing() {
         return bearing;

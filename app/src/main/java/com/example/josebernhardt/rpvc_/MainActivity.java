@@ -18,6 +18,7 @@ import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.os.Message;
 
 import android.speech.tts.TextToSpeech;
@@ -34,7 +35,6 @@ import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
@@ -82,7 +82,7 @@ public class MainActivity extends AppCompatActivity
     private Double frontDataPercentage = 0.0;
     private Double backDataPercentage = 0.0;
     private int dataToDisplay = 0;
-    private static final String CARD_ID = "Xbee3";
+    private static final String CARD_ID = "Xbee1";
     private Snackbar snackbar2, snackbarOffline;
     private TwoProgressDialog twoProgressDialog;
     private String frontSensor ="0";
@@ -93,31 +93,23 @@ public class MainActivity extends AppCompatActivity
     private CommandCenter command = new CommandCenter();
 
     private Handler pdCanceller = new Handler();
-    private Handler deleteOldCarsHandler = new Handler();
-    private Handler refreshListHandler = new Handler();
     private Car myCar = GmapFragment.myCar;
     private TextView statusText;
+    TextView tvHeading;
     private NotificationManager notificationManager;
     private NotificationManager notificationManager2;
     private NotificationCompat.Builder mBuilder;
     private NotificationCompat.Builder leftCarBuilder;
     private AlertDialog panicAlertDialog;
 
-    private  float backAlert = 0.2f;
-    private float rightAlert = 0.2f;
-    private float leftAlert = 0.2f;
-    private float upperBackMargin = 0.2f;
-    private float lowerBackMargin = 0.2f;
-    private float upperRightMargin = 0.2f;
-    private float lowerRightMargin = 0.2f;
-    private  float upperLeftMargin = 0.2f;
-    private float lowerLeftMargin = 0.2f;
-
     private float distanceBetween = 0.2f;
     private TextToSpeech textToSpeech;
+    private double bearingToOtherCar;
+    private double relativeBearing;
 
-
-
+    private boolean gpsTrue = true;
+    private boolean networkTrue = true;
+    private int option = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -189,9 +181,10 @@ public class MainActivity extends AppCompatActivity
         panicAlertDialog.setMessage("Marking ON will alert all Cars of you current" +
                 " situation");
 
-        //Starting checks cars runnable to see who is active
-        deleteOldCarsHandler.postDelayed(checkCarsRunnable, 5000);
-        refreshListHandler.postDelayed(refreshListRunnable, 1000);
+
+        refreshListThread.start();
+        updateCurrentAccuracyThread.start();
+        deleteCarThread.start();
 
         //Progress dialogs
         twoProgressDialog = new TwoProgressDialog(this);
@@ -238,8 +231,6 @@ public class MainActivity extends AppCompatActivity
                 myCar.setCarCrashed("Active");
 
             }
-
-
     }
 
 
@@ -265,7 +256,6 @@ public class MainActivity extends AppCompatActivity
                         sleep(100);
                     }
 
-
                     frontDataPercentage = 0.0;
                     backDataPercentage = 0.0;
 
@@ -276,27 +266,107 @@ public class MainActivity extends AppCompatActivity
         };
         updateProgressThread.start();
 
-
-
     }
 
+
+
+    Thread updateCurrentAccuracyThread = new Thread() {
+        @Override
+        public void run() {
+            Looper.prepare();
+            final Handler refreshAccurracy = new Handler();
+
+            Runnable refresAccurracyRunnable = new Runnable() {
+                @Override
+                public void run() {
+                    if(GmapFragment.myProvider.contains("network") && flagBT){
+                        gpsTrue = true;
+                        //networkTrue = true;
+
+                        textToSpeech.speak("Bad GPS, using sensors", TextToSpeech.QUEUE_FLUSH, null);
+                        while (textToSpeech.isSpeaking()) {
+                            ;
+                            //Nothing here, just waiting for speech to end
+                        }
+                        while (GmapFragment.myProvider.contains("network") && flagBT) {
+                            if (frontSensorNum != 0.0) {
+                                mBuilder.setContentTitle("Sensors Alert");
+                                mBuilder.setPriority(Notification.PRIORITY_MAX);
+                                mBuilder.setContentText("Object on front!");
+                                notificationManager.notify(0, mBuilder.build());
+
+                                textToSpeech.speak("Front Alert", TextToSpeech.QUEUE_FLUSH, null);
+                                while (textToSpeech.isSpeaking()) {
+                                    ;
+                                    //Nothing here, just waiting for speech to end
+                                }
+
+                            }
+                            if (backSensorNum != 0.0) {
+
+                                mBuilder.setContentTitle("Sensors Alert");
+                                mBuilder.setPriority(Notification.PRIORITY_MAX);
+                                mBuilder.setContentText("Object behind!");
+                                notificationManager.notify(0, mBuilder.build());
+
+                                textToSpeech.speak("Back Alert", TextToSpeech.QUEUE_FLUSH, null);
+                                while (textToSpeech.isSpeaking()) {
+                                    ;
+                                    //Nothing here, just waiting for speech to end
+                                }
+
+                            }
+                        }
+
+                        backSensorNum = 0.0;
+                        frontSensorNum = 0.0;
+
+                    }else if(GmapFragment.myProvider.contains("gps") && gpsTrue && flagBT){
+                          gpsTrue = false;
+                          networkTrue = true;
+
+                        textToSpeech.speak("GPS is ready", TextToSpeech.QUEUE_FLUSH, null);
+                        while (textToSpeech.isSpeaking()) {
+                            ;
+                            //Nothing here, just waiting for speech to end
+                        }
+
+                    }
+                    refreshAccurracy.postDelayed(this, 100);
+                }
+            };
+
+            refreshAccurracy.postDelayed(refresAccurracyRunnable, 100);
+            Looper.loop();
+
+        }
+    };
 
 
     /***
      * Sending Local Broadcast on app to send updates of cars
      * information to the Car List. This is sent every second.
      */
-    private Runnable refreshListRunnable = new Runnable() {
+
+    Thread refreshListThread = new Thread() {
         @Override
         public void run() {
+            Looper.prepare();
+            final Handler refreshListHandle = new Handler();
 
-            Intent intent = new Intent("refresh_data");
-            LocalBroadcastManager.getInstance(MainActivity.this).sendBroadcast(intent);
-            refreshListHandler.postDelayed(this, 1000);
+            Runnable refreshListRunnable = new Runnable() {
+                @Override
+                public void run() {
+
+                    Intent intent = new Intent("refresh_data");
+                    LocalBroadcastManager.getInstance(MainActivity.this).sendBroadcast(intent);
+                    refreshListHandle.postDelayed(this, 400);
+                }
+            };
+            refreshListHandle.postDelayed(refreshListRunnable, 400);
+            Looper.loop();
         }
     };
-
-
 
     /***
      * Handler to check if cars are still active on the network
@@ -304,27 +374,111 @@ public class MainActivity extends AppCompatActivity
      * Cars have to keep sending position within this interval
      */
 
-    private Runnable checkCarsRunnable = new Runnable() {
+
+    Thread deleteCarThread = new Thread() {
+        @Override
+        public void run() {
+            Looper.prepare();
+            final Handler deleteOldCarsHandler = new Handler();
+
+            Runnable deleteCarRunnable = new Runnable() {
+                @Override
+                public void run() {
+
+                    if (!CarList.isEmpty()) {
+                        for (int i = 0; i < CarList.size(); i++) {
+                            if (!CarList.get(i).isTimer()) {
+                                leftCarBuilder.setContentText(CarList.get(i).getCarId()
+                                        + " has left network");
+                                leftCarBuilder.setSound(Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.censor));
+                                notificationManager2.notify(0, leftCarBuilder.build());
+                                textToSpeech.speak("car" + CarList.get(i).getCarId()
+                                        + "has left network", TextToSpeech.QUEUE_FLUSH, null);
+                                while(textToSpeech.isSpeaking()){
+                                    ;
+                                    //Nothing here, just waiting for speech to end
+                                }
+                                CarList.remove(i);
+                            }
+                        }
+                        for (int i = 0; i < CarList.size(); i++) {
+                            CarList.get(i).setInicialTimer(false);
+                        }
+                    }
+                    deleteOldCarsHandler.postDelayed(this, 4000);
+                }
+            };
+            deleteOldCarsHandler.postDelayed(deleteCarRunnable, 4000);
+            Looper.loop();
+        }
+    };
+
+
+    Runnable speakRunnable = new Runnable() {
         @Override
         public void run() {
 
-            if (!CarList.isEmpty()) {
-                for (int i = 0; i < CarList.size(); i++) {
-                    if (!CarList.get(i).isTimer()) {
-                        leftCarBuilder.setContentText(CarList.get(i).getCarId()
-                                + " has left network");
-                        mBuilder.setSound(Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.censor));
-                        notificationManager2.notify(0, leftCarBuilder.build());
-                        CarList.remove(i);
+            switch (option){
+
+                case 1:
+                    textToSpeech.speak("car behind", TextToSpeech.QUEUE_FLUSH, null);
+                    while(textToSpeech.isSpeaking()){
+                        ;
+                        //Nothing here, just waiting for speech to end
                     }
-                }
-                for (int i = 0; i < CarList.size(); i++) {
-                    CarList.get(i).setInicialTimer(false);
-                }
+                    break;
+                case 2:
+                    textToSpeech.speak("car on front", TextToSpeech.QUEUE_FLUSH, null);
+                    while(textToSpeech.isSpeaking()){
+                        ;
+                        //Nothing here, just waiting for speech to end
+                    }
+                    break;
+
+                case 3:
+                    textToSpeech.speak("car on your left", TextToSpeech.QUEUE_FLUSH, null);
+                    while(textToSpeech.isSpeaking()){
+                        ;
+                        //Nothing here, just waiting for speech to end
+                    }
+                    break;
+                case 4:
+                    textToSpeech.speak("car on your right", TextToSpeech.QUEUE_FLUSH, null);
+                    while(textToSpeech.isSpeaking()){
+                        ;
+                        //Nothing here, just waiting for speech to end
+                    }
+                    break;
+
+                case 5:
+                    textToSpeech.speak("you are online", TextToSpeech.QUEUE_FLUSH, null);
+                    while(textToSpeech.isSpeaking()){
+                        ;
+                        //Nothing here, just waiting for speech to end
+                    }
+                    break;
+                case 6:
+
+                    break;
+                case 7:
+
+                    break;
             }
-            deleteOldCarsHandler.postDelayed(this, 5000);
         }
     };
+
+    @Override
+    protected void onStop() {
+        try{
+            if(mReceiver!=null)
+                unregisterReceiver(mReceiver);
+        }catch(Exception e) {
+        }
+
+        super.onStop();
+    }
+
+
 
 
     /***
@@ -340,7 +494,7 @@ public class MainActivity extends AppCompatActivity
             byte[] writeBuf = (byte[]) msg.obj;
             int begin = (int) msg.arg1;
             int end = (int) msg.arg2;
-            statusText = (TextView) findViewById(R.id.alertWhereText);
+
 
             String carID;
 
@@ -364,19 +518,24 @@ public class MainActivity extends AppCompatActivity
                             String tempLon = CarsData[2];
                             String carPanic = CarsData[3];
                             String carBearing = CarsData[4];
+                            String carAccuracy = CarsData[5];
 
                             try {
 
-                                //Assigning temp sensors data
-                                String[] sensorData = CarsData[4].split("%");
+                                //Assign ing temp sensors data
+                                String[] sensorData = CarsData[6].split("%");
                                 frontSensor = sensorData[0];
                                 backSensor = sensorData[1];
                                 frontSensorNum = Double.parseDouble(frontSensor);
                                 backSensorNum = Double.parseDouble(backSensor);
-                                if(!(frontSensorNum == 0.0))
-                                    frontDataPercentage = ((distance - frontSensorNum )/ distance) * 100;
-                                if(!(backSensorNum == 0.0))
-                                backDataPercentage = ((distance - backSensorNum) / distance) * 100;
+
+                                if(!(frontSensorNum == 0.0)) {
+                                    frontDataPercentage = ((distance - frontSensorNum) / distance) * 100;
+                                }
+                                if(!(backSensorNum == 0.0)) {
+                                    backDataPercentage = ((distance - backSensorNum) / distance) * 100;
+                                }
+
 
 
                             } catch (Exception e) {
@@ -394,6 +553,7 @@ public class MainActivity extends AppCompatActivity
                                         CarList.get(i).setCarCrashed(carPanic);
                                         CarList.get(i).setInicialTimer(true);
                                         CarList.get(i).setBearing(Float.parseFloat(carBearing));
+                                        CarList.get(i).setAccurracy(Float.parseFloat(carAccuracy));
 
                                         //Compare if current car is close to my Car
                                         Location nextCarPosition = new Location("Point A");
@@ -405,170 +565,100 @@ public class MainActivity extends AppCompatActivity
                                         myCarsPosition.setLongitude(myCar.getLon());
 
                                         distanceBetween = myCarsPosition.distanceTo(nextCarPosition);
-                                        float carBearingNumber = Float.parseFloat(carBearing);
+                                        bearingToOtherCar =  computeBearing(myCar.getLat(),myCar.getLon(),CarList.get(i).getLat(),
+                                                CarList.get(i).getLon());
 
-                                         backAlert = 0.0f;
-                                         rightAlert = 0.0f;
-                                         leftAlert = 0.0f;
+                                         relativeBearing = bearingToOtherCar - myCar.getBearing();
 
-                                         upperBackMargin = 0.0f;
-                                         lowerBackMargin = 0.0f;
-
-                                         upperRightMargin = 0.0f;
-                                         lowerRightMargin = 0.0f;
-
-                                         upperLeftMargin = 0.0f;
-                                         lowerLeftMargin = 0.0f;
-
-
-
-                                         //These if cases are to see on wich quadrant the current
-                                         //angle is.
-                                        if(myCar.getBearing() >= 0 && myCar.getBearing() <= 90){
-
-                                            backAlert = myCar.getBearing() + 180;
-                                            rightAlert = myCar.getBearing() + 270;
-                                            leftAlert = myCar.getBearing() + 90;
-
-                                            upperBackMargin = 270 - backAlert;
-                                            lowerBackMargin = backAlert - 180;
-
-                                            upperRightMargin = 360 - rightAlert;
-                                            lowerRightMargin = rightAlert - 270;
-
-                                            upperLeftMargin = 180 - leftAlert;
-                                            lowerLeftMargin = leftAlert - 90;
-
-
-                                        }else if(myCar.getBearing() >= 90 && myCar.getBearing() <= 180){
-
-                                            backAlert = myCar.getBearing() + 180;
-                                            rightAlert = myCar.getBearing() - 90;
-                                            leftAlert = myCar.getBearing() + 90;
-
-                                            upperBackMargin = 360 - backAlert;
-                                            lowerBackMargin = backAlert - 270;
-
-                                            upperRightMargin = 90 - rightAlert;
-                                            lowerRightMargin = rightAlert;
-
-                                            upperLeftMargin = 270 - leftAlert;
-                                            lowerLeftMargin = leftAlert - 180;
-
-                                        }else if(myCar.getBearing() >= 180 && myCar.getBearing() <= 270){
-
-                                            backAlert = myCar.getBearing() - 180;
-                                            rightAlert = myCar.getBearing() - 90;
-                                            leftAlert = myCar.getBearing() + 90;
-
-                                            upperBackMargin = 90 - backAlert;
-                                            lowerBackMargin = backAlert;
-
-                                            upperRightMargin = 180 - rightAlert;
-                                            lowerRightMargin = rightAlert - 90;
-
-                                            upperLeftMargin = 360 - leftAlert;
-                                            lowerLeftMargin = leftAlert - 270;
-
-                                        }else if(myCar.getBearing() >= 270 && myCar.getBearing() <= 360){
-
-                                            backAlert = myCar.getBearing() - 180;
-                                            rightAlert = myCar.getBearing() - 270;
-                                            leftAlert = myCar.getBearing() - 90;
-
-                                            upperBackMargin = 180 - backAlert;
-                                            lowerBackMargin = backAlert - 90;
-
-                                            upperRightMargin = 270 - rightAlert;
-                                            lowerRightMargin = rightAlert - 180;
-
-                                            upperLeftMargin = 90 - leftAlert;
-                                            lowerLeftMargin = leftAlert;
-
+                                        if(relativeBearing < -180){
+                                            relativeBearing = 360 + relativeBearing;
+                                        }else if(relativeBearing > 180){
+                                            relativeBearing = 360 - relativeBearing;
                                         }
 
+                                       // statusText.setText("Relative bearing to other car: " +
+                                        //    relativeBearing);
+                                        //tvHeading.setText(String.valueOf(myCar.getBearing()));
 
                                         //display alerts upon angle
-                                        if ((distanceBetween <15)) {
+                                        if ((distanceBetween <10  && GmapFragment.myProvider.equals("gps"))) {
                                             mBuilder.setContentTitle("Car " + carID + " getting close");
                                             mBuilder.setPriority(Notification.PRIORITY_MAX);
                                             mBuilder.setContentText("Distance: " +
                                                     String.valueOf(String.format("%.2f",distanceBetween)) + " m");
-                                           // mBuilder.setSound(Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.censor));
                                             notificationManager.notify(0, mBuilder.build());
 
                                             CarList.get(i).setDistanceBetween(distanceBetween);
                                             distanceBetween = 0;
 
-                                        }else if(distanceBetween >= 15 && distanceBetween <=30){
+                                        }else if(distanceBetween >= 10 && distanceBetween <=40 && GmapFragment.myProvider.equals("gps")){
 
-                                            if(carBearingNumber >= (myCar.getBearing() -15)
-                                                    && carBearingNumber <= (myCar.getBearing() + 15)){
-                                                statusText.setText("Vengo por atras tuyo");
+                                            if(relativeBearing >= (145)
+                                                    && relativeBearing <= (185)){
+
+                                               // statusText.setText("Vengo por atras tuyo");
                                                 mBuilder.setContentTitle(CarList.get(i).getCarId()
                                                                 + " coming from behind");
                                                 mBuilder.setPriority(Notification.PRIORITY_MAX);
                                                 mBuilder.setContentText("Distance: " +
                                                         String.valueOf(String.format("%.2f",distanceBetween)) + " m");
-                                                //mBuilder.setSound(Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.carfront));
 
-                                                textToSpeech.speak("car behind you", TextToSpeech.QUEUE_FLUSH, null);
-                                                while(textToSpeech.isSpeaking()){
-                                                    ;
-                                                    //Nothing here, just waiting for speech to end
-                                                }
+                                                option = 1;
+                                                Thread thread = new Thread(speakRunnable);
+                                                thread.setPriority(Thread.MAX_PRIORITY);
+                                                thread.start();
+
                                                 notificationManager.notify(0, mBuilder.build());
 
-                                            }else if(carBearingNumber >= (backAlert - lowerBackMargin)
-                                                    && carBearingNumber <= (backAlert + upperBackMargin)) {
-                                                statusText.setText("Vengo por alante de ti");
+                                            }else if(relativeBearing >= (-25) && relativeBearing <= (20)){
+                                               // statusText.setText("Vengo por alante de ti");
                                                 mBuilder.setContentTitle(CarList.get(i).getCarId()
                                                         + " coming by your front");
                                                 mBuilder.setPriority(Notification.PRIORITY_MAX);
                                                 mBuilder.setContentText("Distance: " +
                                                         String.valueOf(String.format("%.2f",distanceBetween)) + " m");
-                                               // mBuilder.setSound(Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.carbehind));
-                                                textToSpeech.speak("car by your front", TextToSpeech.QUEUE_FLUSH, null);
-                                                while(textToSpeech.isSpeaking()){
-                                                    ;
-                                                    //Nothing here, just waiting for speech to end
-                                                }
+
+                                                option = 2;
+                                                Thread thread = new Thread(speakRunnable);
+                                                thread.setPriority(Thread.MAX_PRIORITY);
+                                                thread.start();
+
                                                 notificationManager.notify(0, mBuilder.build());
 
-                                            }else if(carBearingNumber >= (leftAlert  - lowerLeftMargin)
-                                                    && carBearingNumber <= (leftAlert + upperLeftMargin)) {
-                                                statusText.setText("Vengo por la izquiera");
+                                            }else if(relativeBearing >= (-90) && relativeBearing <= (-50)) {
+                                               // statusText.setText("Vengo por la izquiera");
                                                 mBuilder.setContentTitle(CarList.get(i).getCarId()
                                                         + " coming from your left");
                                                 mBuilder.setPriority(Notification.PRIORITY_MAX);
                                                 mBuilder.setContentText("Distance: " +
                                                         String.valueOf(String.format("%.2f",distanceBetween)) + " m");
-                                                //mBuilder.setSound(Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.carleft));
                                                 textToSpeech.speak("car on your left", TextToSpeech.QUEUE_FLUSH, null);
-                                                while(textToSpeech.isSpeaking()){
-                                                    ;
-                                                    //Nothing here, just waiting for speech to end
-                                                }
+
+                                                option = 3;
+                                                Thread thread = new Thread(speakRunnable);
+                                                thread.setPriority(Thread.MAX_PRIORITY);
+                                                thread.start();
+
                                                 notificationManager.notify(0, mBuilder.build());
 
-                                            }else if(carBearingNumber >= (rightAlert  - lowerRightMargin)
-                                                    && carBearingNumber <= (rightAlert + upperRightMargin )){
-                                                statusText.setText("Vengo por la derecha");
+                                            }else if(relativeBearing >= 50 && relativeBearing <= 90){
+                                               // statusText.setText("Vengo por la derecha");
                                                 mBuilder.setContentTitle(CarList.get(i).getCarId()
                                                         + " coming from your right");
                                                 mBuilder.setPriority(Notification.PRIORITY_MAX);
                                                 mBuilder.setContentText("Distance: " +
                                                         String.valueOf(String.format("%.2f",distanceBetween)) + " m");
-                                                //mBuilder.setSound(Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.carright));
                                                 textToSpeech.speak("car on your right", TextToSpeech.QUEUE_FLUSH, null);
-                                                while(textToSpeech.isSpeaking()){
-                                                    ;
-                                                    //Nothing here, just waiting for speech to end
-                                                }
+
+                                                option = 4;
+                                                Thread thread = new Thread(speakRunnable);
+                                                thread.setPriority(Thread.MAX_PRIORITY);
+                                                thread.start();
+
                                                 notificationManager.notify(0, mBuilder.build());
 
                                             } else{
-                                                statusText.setText("No soy amenaza");
+                                               // statusText.setText("No soy amenaza");
                                             }
 
                                             CarList.get(i).setDistanceBetween(distanceBetween);
@@ -597,6 +687,8 @@ public class MainActivity extends AppCompatActivity
                                 mBuilder.setContentText("Car: " + carID
                                         + " has joined!");
                                 mBuilder.setSound(Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.censor));
+                                textToSpeech.speak("car" + carID
+                                        + "has joined network", TextToSpeech.QUEUE_FLUSH, null);
                                 notificationManager.notify(0, mBuilder.build());
 
 
@@ -615,7 +707,10 @@ public class MainActivity extends AppCompatActivity
                                 }
                                 if(!(backSensorNum == 0.0)) {
                                     backDataPercentage = ((distance - backSensorNum) / distance) * 100;
+
                                 }
+
+
 
                             }catch(Exception e){
 
@@ -633,6 +728,10 @@ public class MainActivity extends AppCompatActivity
                     snackbar.show();
                     break;
                 case 3:
+                    option = 5;
+                    Thread thread = new Thread(speakRunnable);
+                    thread.start();
+
                     snackbar2 = Snackbar.make(navigationView, "You're Online!", Snackbar.LENGTH_INDEFINITE);
                     snackbar2.setActionTextColor(Color.GREEN);
                     View  snackbarView = snackbar2.getView();
@@ -642,6 +741,29 @@ public class MainActivity extends AppCompatActivity
             }
         }
     };
+
+    /**
+     *  Takes the bearing of the local car and remote car to compute
+     *  the relative bearing.
+     *
+     * @param lat1 local car Latitude
+     * @param lon1 Local car longitude
+     * @param lat2 Remote car Latitude
+     * @param lon2 Remote car Longitude
+     * @return Relative bearing between local car and remote car
+     */
+     public double computeBearing(double lat1, double lon1, double lat2, double lon2){
+
+        double longitude1 = lon1;
+        double longitude2 = lon2;
+        double latitude1 = Math.toRadians(lat1);
+        double latitude2 = Math.toRadians(lat2);
+        double longDiff= Math.toRadians(longitude2-longitude1);
+        double y= Math.sin(longDiff)*Math.cos(latitude2);
+        double x=Math.cos(latitude1)*Math.sin(latitude2)-Math.sin(latitude1)*Math.cos(latitude2)*Math.cos(longDiff);
+
+        return (Math.toDegrees(Math.atan2(y, x))+360)%360;
+    }
 
 
 
@@ -669,6 +791,7 @@ public class MainActivity extends AppCompatActivity
     private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
+
             String action = intent.getAction();
             //  BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
             if (BluetoothDevice.ACTION_ACL_DISCONNECTED.equals(action)) {
@@ -676,16 +799,19 @@ public class MainActivity extends AppCompatActivity
                     enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
                     startActivityForResult(enableBtIntent, 1);
                 } else {
-                    Snackbar snackbar = Snackbar.make(navigationView, "Bluetooth connection lost! Re-trying... ",
-                            Snackbar.LENGTH_INDEFINITE);
-                    snackbar.show();
+                    textToSpeech.speak("you are offline", TextToSpeech.QUEUE_FLUSH, null);
+                    while(textToSpeech.isSpeaking()){
+                        ;
+                        //Nothing here, just waiting for speech to end
+                    }
                     flagBT = false;
+                    frontSensorNum = 0;
+                    backSensorNum = 0;
                     mConnectedThread.interrupt();
                     mSendData.interrupt();
                     snackbar2.dismiss();
                     snackbarOffline.show();
-
-
+                    networkTrue = false;
                 }
             }
         }
@@ -770,8 +896,7 @@ public class MainActivity extends AppCompatActivity
         public void run() {
             Car myCar;
 
-
-            while (true && !isInterrupted()) {
+            while (!isInterrupted()) {
 
                 myCar = GmapFragment.myCar;
                 if (myCar.getLat() != 0 && myCar.getLon() != 0 && myCar != null) {
@@ -786,6 +911,8 @@ public class MainActivity extends AppCompatActivity
                         outputStream.write(myCar.getCarCrashed().getBytes());
                         outputStream.write(",".getBytes());
                         outputStream.write(String.valueOf(myCar.getBearing()).getBytes());
+                        outputStream.write(",".getBytes());
+                        outputStream.write(String.valueOf(myCar.getAccurracy()).getBytes());
 
                         byte dataSend[] = outputStream.toByteArray();
                         write(dataSend);
@@ -796,7 +923,7 @@ public class MainActivity extends AppCompatActivity
 
                 }
                 try {
-                    Thread.sleep(300);
+                    Thread.sleep(500);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }

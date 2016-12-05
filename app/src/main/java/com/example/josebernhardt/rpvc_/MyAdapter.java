@@ -25,6 +25,7 @@ public class MyAdapter extends BaseAdapter {
     private TextView distanceText;
     private TextView statusText;
     private ImageView imageView;
+    private TextView  gpsAccurracy;
 
     //Constructor recieving from the ListAdpater
     public MyAdapter(Context context, List<Car> CarList) {
@@ -71,6 +72,9 @@ public class MyAdapter extends BaseAdapter {
 
         statusText = (TextView) vi.findViewById(R.id.statusText);
         statusText.setText(">Status: "  + CarList.get(position).getCarCrashed());
+
+        gpsAccurracy = (TextView) vi.findViewById(R.id.lastSeenText);
+        gpsAccurracy.setText(">GPS Accurracy: "  + String.valueOf(String.format("%.2f",CarList.get(position).getAccurracy())) + " m");
 
         imageView = (ImageView) vi.findViewById(R.id.ListimageView);
         imageView.setImageResource(R.drawable.car_icon);

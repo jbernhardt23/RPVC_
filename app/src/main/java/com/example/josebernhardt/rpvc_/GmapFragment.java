@@ -8,7 +8,6 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -31,6 +30,9 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapFragment;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.CameraPosition;
+import com.google.android.gms.maps.model.Circle;
+import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
@@ -49,6 +51,8 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
 
     private  List<Car> CarList;
     public static Car myCar = new Car();
+    public static float myAcurracy;
+    public  static String myProvider = "";
     private Marker marker, mMarker;
     MapFragment fragment;
     private GoogleMap gMap;
@@ -56,13 +60,14 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
     View v;
     Thread putCar;
     private List<Marker> markersList = new ArrayList<>();
+    private List<Circle> circleList = new ArrayList<>();
     private LocationManager locationManager;
     private LocationListener gpsListener, networkListener;
     private double latitude;
     private double longitude;
     private boolean gpsProviderReady = false;
     private boolean flag = false;
-    private static final String CARD_ID = "Xbee3";
+    private static final String CARD_ID = "Xbee1";
     private AlertDialog.Builder builder;
     private AlertDialog alertDialog;
     private ProgressDialog dialogMapLoading;
@@ -74,6 +79,18 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
     private static float networkBearing;
     private Location prevNetworkLoc;
     private Location newNetworkLoc;
+    private CameraPosition oldPos, pos;
+    private int strokeColor = 0xffff0000;
+    //opaque red fill
+    private int shadeColor = 0x44ff0000;
+
+    private int mStrokeColor = 0x00008000;
+    private int mShadeColor = 0x566D7E00;
+
+    private float circleRadius = 0.2f;
+    private Circle circle, mCircle;
+
+
 
 
     @Override
@@ -142,19 +159,25 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
 
         putCar = new putCar();
         putCar.start();
-
         //Initial Set up
         LatLng pos = new LatLng(0, 0);
+
         marker = googleMap.addMarker(new MarkerOptions()
                 .title("Car:" + " " + CARD_ID)
                 .position(pos)
                 .icon(BitmapDescriptorFactory.fromResource(R.drawable.redmapicon)));
+
+        circle = googleMap.addCircle(new CircleOptions()
+                .center(pos)
+                .radius(0)
+                .fillColor(shadeColor)
+                .strokeColor(strokeColor).strokeWidth(2));
+
         googleMap.getUiSettings().setRotateGesturesEnabled(false);
-        googleMap.animateCamera(CameraUpdateFactory.zoomTo(17));
+        googleMap.animateCamera(CameraUpdateFactory.zoomTo(19));
         googleMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
         googleMap.getUiSettings().setZoomGesturesEnabled(true);
         googleMap.getUiSettings().setZoomControlsEnabled(true);
-
         //Location Listener for both providers to take the best one
         networkListener = new LocationListener() {
             @Override
@@ -170,17 +193,21 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
                     networkBearing = prevNetworkLoc.bearingTo(newNetworkLoc);
                     latitude = location.getLatitude();
                     longitude = location.getLongitude();
-
+                    myAcurracy = location.getAccuracy();
+                    myProvider = location.getProvider();
                     myCar.setCarId(CARD_ID);
                     myCar.setLat(latitude);
                     myCar.setLon(longitude);
                     myCar.setCurrentSpeed(location.getSpeed());
+                    myCar.setAccurracy(location.getAccuracy());
+
 
                     LatLng pos = new LatLng(latitude, longitude);
                     marker.setPosition(pos);
                     marker.setSnippet("Car Speed: " + String.format("%.2f",location.getSpeed() * 3600 / 1000) + "km/h");
-                   // marker.hideInfoWindow();
-                  //  marker.showInfoWindow();
+
+                    circle.setCenter(pos);
+                    circle.setRadius(location.getAccuracy());
 
                     if (!(networkBearing == 0.0)) {
                         if(networkBearing < 0.0){
@@ -197,11 +224,17 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
                         }
                     }
 
-                    //  tvHeading.setText(String.valueOf(networkBearing));
 
                     marker.setAnchor(0.5f,0.5f);
                     googleMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(latitude, longitude)));
-                    googleMap.animateCamera(CameraUpdateFactory.zoomTo(17));
+                  //  googleMap.animateCamera(CameraUpdateFactory.zoomTo(15));
+
+//                        CameraPosition currentPlace = new CameraPosition.Builder()
+//                                .target(pos)
+//                                .bearing(networkBearing).zoom(18f).build();
+//                        googleMap.moveCamera(CameraUpdateFactory.newCameraPosition(currentPlace));
+
+
                     prevNetworkLoc = newNetworkLoc;
             }
 
@@ -229,7 +262,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
             @Override
             public void onLocationChanged(Location location) {
 
-                if(location.getAccuracy() > 0 && location.getAccuracy() < 20) {
+                if(location.getAccuracy() > 0 && location.getAccuracy() < 15) {
 
                     //Updating position to get Bearing
                     newGPSLoc = location;
@@ -240,10 +273,15 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
                     gpsProviderReady = true;
                     latitude = location.getLatitude();
                     longitude = location.getLongitude();
+                    myAcurracy = location.getAccuracy();
+                    myProvider = location.getProvider();
+                    System.out.println(myProvider);
                     myCar.setCarId(CARD_ID);
                     myCar.setLat(latitude);
                     myCar.setLon(longitude);
                     myCar.setCurrentSpeed(location.getSpeed());
+
+
 
                     if (!(GPSbearing == 0.0)) {
                         if(GPSbearing < 0.0){
@@ -264,11 +302,20 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
                     LatLng pos = new LatLng(latitude, longitude);
                     marker.setPosition(pos);
                     marker.setSnippet("Car Speed: " + String.format("%.2f",location.getSpeed() * 3600 / 1000) + "km/h");
+
+                    circle.setCenter(pos);
+                    circle.setRadius(location.getAccuracy());
+
                     //    marker.hideInfoWindow();
                    // marker.showInfoWindow();
                     googleMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(latitude, longitude)));
-                    googleMap.animateCamera(CameraUpdateFactory.zoomTo(17));
+                   // googleMap.animateCamera(CameraUpdateFactory.zoomTo(25));
+//                    CameraPosition currentPlace = new CameraPosition.Builder()
+//                            .target(pos)
+//                            .bearing(GPSbearing).zoom(18f).build();
+//                    googleMap.moveCamera(CameraUpdateFactory.newCameraPosition(currentPlace));
                     prevGPSLoc = newGPSLoc;
+
                 }else{
                     gpsProviderReady =false;
                 }
@@ -326,16 +373,21 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
                     if (!markersList.isEmpty()) {
                         for (int i = 0; i < CarList.size(); i++) {
                             if (markersList.get(i).getTitle().contains(CarList.get(i).getCarId())
-                                    && CarList.size() == markersList.size()) {
+                                    && CarList.size() == markersList.size()
+                                    && CarList.size() == circleList.size()) {
 
                                 LatLng pos = new LatLng(CarList.get(i).getLat(), CarList.get(i).getLon());
                                 markersList.get(i).setPosition(pos);
                                 markersList.get(i).setAnchor(0.5f, 0.5f);
                                 markersList.get(i).setRotation(CarList.get(i).getBearing());
 
+                                circleList.get(i).setRadius(CarList.get(i).getAccurracy());
+                                circleList.get(i).setCenter(pos);
+
                             } else {
                                 gMap.clear();
                                 markersList.clear();
+                                circleList.clear();
 
                                 LatLng pos = new LatLng(latitude, longitude);
                                 marker = gMap.addMarker(new MarkerOptions()
@@ -343,7 +395,14 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
                                         .position(pos)
                                         .icon(BitmapDescriptorFactory.fromResource(R.drawable.redmapicon)));
 
+                                circle = gMap.addCircle(new CircleOptions()
+                                        .center(pos)
+                                        .radius(myAcurracy)
+                                        .fillColor(shadeColor)
+                                        .strokeColor(strokeColor).strokeWidth(2));
+
                                 for (int k = 0; k < CarList.size(); k++) {
+
                                     LatLng pos2 = new LatLng(CarList.get(k).getLat(), CarList.get(k).getLon());
                                     mMarker = gMap.addMarker(new MarkerOptions()
                                             .title("Car:" + " " + CarList.get(k).getCarId())
@@ -352,9 +411,17 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
                                             .position(pos2));
 
                                     mMarker.setAnchor(0.5f, 0.5f);
-                                    mMarker.setRotation(CarList.get(i).getBearing());
+                                    mMarker.setRotation(CarList.get(k).getBearing());
                                   //  mMarker.showInfoWindow();
                                     markersList.add(mMarker);
+
+                                    mCircle = gMap.addCircle(new CircleOptions()
+                                            .center(pos2)
+                                            .radius(CarList.get(k).getAccurracy())
+                                            .fillColor(mShadeColor)
+                                            .strokeColor(mStrokeColor).strokeWidth(2));
+
+                                    circleList.add(mCircle);
                                 }
                                 break;
                             }
@@ -373,6 +440,15 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
                             mMarker.setRotation(CarList.get(i).getBearing());
                            // mMarker.showInfoWindow();
                             markersList.add(mMarker);
+
+
+                            mCircle = gMap.addCircle(new CircleOptions()
+                                    .center(pos)
+                                    .radius(CarList.get(i).getAccurracy())
+                                    .fillColor(mShadeColor)
+                                    .strokeColor(mStrokeColor).strokeWidth(2));
+
+                            circleList.add(mCircle);
                         }
                     }
 
@@ -380,13 +456,19 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
                 case 2:
                     gMap.clear();
                     markersList.clear();
-
+                    circleList.clear();
 
                     LatLng pos = new LatLng(latitude, longitude);
                     marker = gMap.addMarker(new MarkerOptions()
                             .title("Car:" + " " + CARD_ID)
                             .position(pos)
                             .icon(BitmapDescriptorFactory.fromResource(R.drawable.redmapicon)));
+
+                    circle = gMap.addCircle(new CircleOptions()
+                            .center(pos)
+                            .radius(myAcurracy)
+                            .fillColor(shadeColor)
+                            .strokeColor(strokeColor).strokeWidth(2));
 
                     marker.showInfoWindow();
 
@@ -409,7 +491,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
                     displayHandler.obtainMessage(2).sendToTarget();
                 }
                 try {
-                    Thread.sleep(400);
+                    Thread.sleep(200);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
