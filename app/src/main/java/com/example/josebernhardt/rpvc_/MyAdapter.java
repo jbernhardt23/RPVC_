@@ -1,6 +1,7 @@
 package com.example.josebernhardt.rpvc_;
 import android.content.Context;
 
+import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -26,6 +27,7 @@ public class MyAdapter extends BaseAdapter {
     private TextView statusText;
     private ImageView imageView;
     private TextView  gpsAccurracy;
+    private int color = 0x58585800;
 
     //Constructor recieving from the ListAdpater
     public MyAdapter(Context context, List<Car> CarList) {
@@ -78,6 +80,10 @@ public class MyAdapter extends BaseAdapter {
 
         imageView = (ImageView) vi.findViewById(R.id.ListimageView);
         imageView.setImageResource(R.drawable.car_icon);
+
+        if(CarList.get(position).getCarCrashed().equals("Down")){
+            vi.setBackgroundColor(color);
+        }
         return vi;
 
     }

@@ -60,7 +60,6 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
     View v;
     Thread putCar;
     private List<Marker> markersList = new ArrayList<>();
-    private List<Circle> circleList = new ArrayList<>();
     private LocationManager locationManager;
     private LocationListener gpsListener, networkListener;
     private double latitude;
@@ -71,24 +70,16 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
     private AlertDialog.Builder builder;
     private AlertDialog alertDialog;
     private ProgressDialog dialogMapLoading;
-    private Bitmap icon;
-    TextView tvHeading;
     private static float GPSbearing;
     private Location prevGPSLoc;
     private Location newGPSLoc;
     private static float networkBearing;
     private Location prevNetworkLoc;
     private Location newNetworkLoc;
-    private CameraPosition oldPos, pos;
     private int strokeColor = 0xffff0000;
-    //opaque red fill
     private int shadeColor = 0x44ff0000;
-
-    private int mStrokeColor = 0x00008000;
-    private int mShadeColor = 0x566D7E00;
-
-    private float circleRadius = 0.2f;
-    private Circle circle, mCircle;
+    private Circle circle;
+    private boolean firstTime = true;
 
 
 
@@ -142,7 +133,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
                 gMap = ((MapFragment) getFragmentManager().
                         findFragmentById(R.id.map)).getMap();
             }*/
-        tvHeading = (TextView) getView().findViewById(R.id.sensorText);
+
 
     }
 
@@ -154,8 +145,6 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
 
         //TODO this is not working properly, app crash requesting permissions first time
         permissions();
-
-
 
         putCar = new putCar();
         putCar.start();
@@ -173,6 +162,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
                 .fillColor(shadeColor)
                 .strokeColor(strokeColor).strokeWidth(2));
 
+
         googleMap.getUiSettings().setRotateGesturesEnabled(false);
         googleMap.animateCamera(CameraUpdateFactory.zoomTo(19));
         googleMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
@@ -186,57 +176,58 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
                 if(!gpsProviderReady) {
 
                     //Updating position to get Bearing
-                    newNetworkLoc= location;
-                    if(prevNetworkLoc == null)
-                        prevNetworkLoc = location;
-
-                    networkBearing = prevNetworkLoc.bearingTo(newNetworkLoc);
-                    latitude = location.getLatitude();
-                    longitude = location.getLongitude();
-                    myAcurracy = location.getAccuracy();
-                    myProvider = location.getProvider();
-                    myCar.setCarId(CARD_ID);
-                    myCar.setLat(latitude);
-                    myCar.setLon(longitude);
-                    myCar.setCurrentSpeed(location.getSpeed());
-                    myCar.setAccurracy(location.getAccuracy());
-
-
-                    LatLng pos = new LatLng(latitude, longitude);
-                    marker.setPosition(pos);
-                    marker.setSnippet("Car Speed: " + String.format("%.2f",location.getSpeed() * 3600 / 1000) + "km/h");
-
-                    circle.setCenter(pos);
-                    circle.setRadius(location.getAccuracy());
-
-                    if (!(networkBearing == 0.0)) {
-                        if(networkBearing < 0.0){
-                            networkBearing = networkBearing + 360;
-                            marker.setAnchor(0.5f, 0.5f);
-                            marker.setRotation(networkBearing);
-                            myCar.setBearing(networkBearing);
-                            tvHeading.setText(String.valueOf(myCar.getBearing()));
-                        }else{
-                            marker.setAnchor(0.5f, 0.5f);
-                            marker.setRotation(networkBearing);
-                            myCar.setBearing(networkBearing);
-                            tvHeading.setText(String.valueOf(myCar.getBearing()));
-                        }
-                    }
-
-
-                    marker.setAnchor(0.5f,0.5f);
-                    googleMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(latitude, longitude)));
-                  //  googleMap.animateCamera(CameraUpdateFactory.zoomTo(15));
-
-//                        CameraPosition currentPlace = new CameraPosition.Builder()
-//                                .target(pos)
-//                                .bearing(networkBearing).zoom(18f).build();
-//                        googleMap.moveCamera(CameraUpdateFactory.newCameraPosition(currentPlace));
-
-
-                    prevNetworkLoc = newNetworkLoc;
+//                    newNetworkLoc= location;
+//                    if(prevNetworkLoc == null)
+//                        prevNetworkLoc = location;
+//
+//                    networkBearing = prevNetworkLoc.bearingTo(newNetworkLoc);
+//                    latitude = location.getLatitude();
+//                    longitude = location.getLongitude();
+//                    myAcurracy = location.getAccuracy();
+//                    myProvider = location.getProvider();
+//                    myCar.setCarId(CARD_ID);
+//                    myCar.setLat(latitude);
+//                    myCar.setLon(longitude);
+//                    myCar.setCurrentSpeed(location.getSpeed());
+//                    myCar.setAccurracy(location.getAccuracy());
+//
+//
+//                    LatLng pos = new LatLng(latitude, longitude);
+//                    marker.setPosition(pos);
+//                    marker.setSnippet("Car Speed: " + String.format("%.2f",location.getSpeed() * 3600 / 1000) + "km/h");
+//
+//                    circle.setCenter(pos);
+//                    circle.setRadius(location.getAccuracy());
+//
+//                    if ( location.getSpeed() > 1) {
+//                        if(networkBearing < 0.0){
+//                            networkBearing = networkBearing + 360;
+//                            marker.setAnchor(0.5f, 0.5f);
+//                            marker.setRotation(networkBearing);
+//                            myCar.setBearing(networkBearing);
+//
+//                        }else{
+//                            marker.setAnchor(0.5f, 0.5f);
+//                            marker.setRotation(networkBearing);
+//                            myCar.setBearing(networkBearing);
+//
+//                        }
+//                    }
+//
+//                    marker.setAnchor(0.5f,0.5f);
+//                    googleMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(latitude, longitude)));
+//                    if(firstTime) {
+//                        googleMap.animateCamera(CameraUpdateFactory.zoomTo(19));
+//                        firstTime = false;
+//                    }
+//                    prevNetworkLoc = newNetworkLoc;
             }
+
+                if(firstTime) {
+                        googleMap.animateCamera(CameraUpdateFactory.zoomTo(19));
+                        firstTime = false;
+                    }
+                myProvider = location.getProvider();
 
             }
 
@@ -262,7 +253,7 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
             @Override
             public void onLocationChanged(Location location) {
 
-                if(location.getAccuracy() > 0 && location.getAccuracy() < 15) {
+                if(location.getAccuracy() > 0 && location.getAccuracy() < 10) {
 
                     //Updating position to get Bearing
                     newGPSLoc = location;
@@ -281,24 +272,20 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
                     myCar.setLon(longitude);
                     myCar.setCurrentSpeed(location.getSpeed());
 
-
-
-                    if (!(GPSbearing == 0.0)) {
+                    if (location.getSpeed() > 0 && GPSbearing != 0.0) {
                         if(GPSbearing < 0.0){
                             GPSbearing = GPSbearing + 360;
                             marker.setAnchor(0.5f, 0.5f);
                             marker.setRotation(GPSbearing);
                             myCar.setBearing(GPSbearing);
-                            tvHeading.setText(String.valueOf(myCar.getBearing()));
+
                         }else{
                             marker.setAnchor(0.5f, 0.5f);
                             marker.setRotation(GPSbearing);
                             myCar.setBearing(GPSbearing);
-                            tvHeading.setText(String.valueOf(myCar.getBearing()));
+
                         }
                     }
-
-
                     LatLng pos = new LatLng(latitude, longitude);
                     marker.setPosition(pos);
                     marker.setSnippet("Car Speed: " + String.format("%.2f",location.getSpeed() * 3600 / 1000) + "km/h");
@@ -306,14 +293,13 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
                     circle.setCenter(pos);
                     circle.setRadius(location.getAccuracy());
 
-                    //    marker.hideInfoWindow();
+                    // marker.hideInfoWindow();
                    // marker.showInfoWindow();
                     googleMap.moveCamera(CameraUpdateFactory.newLatLng(new LatLng(latitude, longitude)));
-                   // googleMap.animateCamera(CameraUpdateFactory.zoomTo(25));
-//                    CameraPosition currentPlace = new CameraPosition.Builder()
-//                            .target(pos)
-//                            .bearing(GPSbearing).zoom(18f).build();
-//                    googleMap.moveCamera(CameraUpdateFactory.newCameraPosition(currentPlace));
+                    if(firstTime) {
+                        googleMap.animateCamera(CameraUpdateFactory.zoomTo(19));
+                        firstTime = false;
+                    }
                     prevGPSLoc = newGPSLoc;
 
                 }else{
@@ -373,21 +359,16 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
                     if (!markersList.isEmpty()) {
                         for (int i = 0; i < CarList.size(); i++) {
                             if (markersList.get(i).getTitle().contains(CarList.get(i).getCarId())
-                                    && CarList.size() == markersList.size()
-                                    && CarList.size() == circleList.size()) {
+                                    && CarList.size() == markersList.size()) {
 
                                 LatLng pos = new LatLng(CarList.get(i).getLat(), CarList.get(i).getLon());
                                 markersList.get(i).setPosition(pos);
                                 markersList.get(i).setAnchor(0.5f, 0.5f);
                                 markersList.get(i).setRotation(CarList.get(i).getBearing());
 
-                                circleList.get(i).setRadius(CarList.get(i).getAccurracy());
-                                circleList.get(i).setCenter(pos);
-
                             } else {
                                 gMap.clear();
                                 markersList.clear();
-                                circleList.clear();
 
                                 LatLng pos = new LatLng(latitude, longitude);
                                 marker = gMap.addMarker(new MarkerOptions()
@@ -415,13 +396,6 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
                                   //  mMarker.showInfoWindow();
                                     markersList.add(mMarker);
 
-                                    mCircle = gMap.addCircle(new CircleOptions()
-                                            .center(pos2)
-                                            .radius(CarList.get(k).getAccurracy())
-                                            .fillColor(mShadeColor)
-                                            .strokeColor(mStrokeColor).strokeWidth(2));
-
-                                    circleList.add(mCircle);
                                 }
                                 break;
                             }
@@ -441,14 +415,6 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
                            // mMarker.showInfoWindow();
                             markersList.add(mMarker);
 
-
-                            mCircle = gMap.addCircle(new CircleOptions()
-                                    .center(pos)
-                                    .radius(CarList.get(i).getAccurracy())
-                                    .fillColor(mShadeColor)
-                                    .strokeColor(mStrokeColor).strokeWidth(2));
-
-                            circleList.add(mCircle);
                         }
                     }
 
@@ -456,7 +422,6 @@ public class GmapFragment extends Fragment implements OnMapReadyCallback{
                 case 2:
                     gMap.clear();
                     markersList.clear();
-                    circleList.clear();
 
                     LatLng pos = new LatLng(latitude, longitude);
                     marker = gMap.addMarker(new MarkerOptions()

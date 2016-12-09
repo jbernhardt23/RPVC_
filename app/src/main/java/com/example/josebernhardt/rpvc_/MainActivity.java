@@ -43,6 +43,7 @@ import android.widget.ToggleButton;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -94,15 +95,16 @@ public class MainActivity extends AppCompatActivity
 
     private Handler pdCanceller = new Handler();
     private Car myCar = GmapFragment.myCar;
-    private TextView statusText;
-    TextView tvHeading;
     private NotificationManager notificationManager;
     private NotificationManager notificationManager2;
     private NotificationCompat.Builder mBuilder;
     private NotificationCompat.Builder leftCarBuilder;
     private AlertDialog panicAlertDialog;
+    private Handler deleteOldCarsHandler = new Handler();
+    private Handler refreshListHandler = new Handler();
 
     private float distanceBetween = 0.2f;
+    private float previousDistanceBetween = 0.2f;
     private TextToSpeech textToSpeech;
     private double bearingToOtherCar;
     private double relativeBearing;
@@ -110,6 +112,14 @@ public class MainActivity extends AppCompatActivity
     private boolean gpsTrue = true;
     private boolean networkTrue = true;
     private int option = 0;
+    SpeakRunnable speakRunnable = new SpeakRunnable();
+    private double otherPreviousSpeed;
+    private double myPreviousSpeed;
+
+    boolean carBehind = false;
+    boolean carFront = false;
+    boolean carRight = false;
+    boolean carLeft = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -182,9 +192,10 @@ public class MainActivity extends AppCompatActivity
                 " situation");
 
 
-        refreshListThread.start();
-        updateCurrentAccuracyThread.start();
-        deleteCarThread.start();
+
+        //Starting checks cars runnable to see who is active
+        deleteOldCarsHandler.postDelayed(checkCarsRunnable, 5000);
+        refreshListHandler.postDelayed(refreshListRunnable, 1000);
 
         //Progress dialogs
         twoProgressDialog = new TwoProgressDialog(this);
@@ -235,7 +246,7 @@ public class MainActivity extends AppCompatActivity
 
 
     /**
-     * Handles the touch event when floating notification gets clicked
+     * Display Real time view of current data of the sensors
      * @param v Current view of the App
      */
     public void floatingAction(View v){
@@ -253,7 +264,8 @@ public class MainActivity extends AppCompatActivity
                     while(twoProgressDialog.isShowing()){
                         twoProgressDialog.setProgress(frontDataPercentage.intValue());
                         twoProgressDialog.setSecondaryProgress(backDataPercentage.intValue());
-                        sleep(100);
+
+                        sleep(50);
                     }
 
                     frontDataPercentage = 0.0;
@@ -268,18 +280,17 @@ public class MainActivity extends AppCompatActivity
 
     }
 
+    /**
+     * Checks GPS acrracy to decide whether to use sensors or  geolocation
+     */
 
+/*
+        private class checkAcurracyThread extends Thread {
 
-    Thread updateCurrentAccuracyThread = new Thread() {
-        @Override
         public void run() {
-            Looper.prepare();
-            final Handler refreshAccurracy = new Handler();
+            while (!isInterrupted()) {
 
-            Runnable refresAccurracyRunnable = new Runnable() {
-                @Override
-                public void run() {
-                    if(GmapFragment.myProvider.contains("network") && flagBT){
+                    if (GmapFragment.myProvider.contains("network") && flagBT) {
                         gpsTrue = true;
                         //networkTrue = true;
 
@@ -314,59 +325,47 @@ public class MainActivity extends AppCompatActivity
                                     ;
                                     //Nothing here, just waiting for speech to end
                                 }
-
                             }
+                            backSensorNum = 0.0;
+                            frontSensorNum = 0.0;
                         }
 
-                        backSensorNum = 0.0;
-                        frontSensorNum = 0.0;
-
-                    }else if(GmapFragment.myProvider.contains("gps") && gpsTrue && flagBT){
-                          gpsTrue = false;
-                          networkTrue = true;
+                    } else if (GmapFragment.myProvider.contains("gps") && gpsTrue && flagBT) {
+                        gpsTrue = false;
+                        networkTrue = true;
 
                         textToSpeech.speak("GPS is ready", TextToSpeech.QUEUE_FLUSH, null);
                         while (textToSpeech.isSpeaking()) {
                             ;
                             //Nothing here, just waiting for speech to end
                         }
-
                     }
-                    refreshAccurracy.postDelayed(this, 100);
+                 try{
+                     Thread.sleep(50);
+                } catch (InterruptedException e) {
+                    break;
                 }
-            };
-
-            refreshAccurracy.postDelayed(refresAccurracyRunnable, 100);
-            Looper.loop();
-
+            }
         }
-    };
+
+    }*/
+
 
 
     /***
      * Sending Local Broadcast on app to send updates of cars
      * information to the Car List. This is sent every second.
      */
-
-    Thread refreshListThread = new Thread() {
+    private Runnable refreshListRunnable = new Runnable() {
         @Override
         public void run() {
-            Looper.prepare();
-            final Handler refreshListHandle = new Handler();
 
-            Runnable refreshListRunnable = new Runnable() {
-                @Override
-                public void run() {
-
-                    Intent intent = new Intent("refresh_data");
-                    LocalBroadcastManager.getInstance(MainActivity.this).sendBroadcast(intent);
-                    refreshListHandle.postDelayed(this, 400);
-                }
-            };
-            refreshListHandle.postDelayed(refreshListRunnable, 400);
-            Looper.loop();
+            Intent intent = new Intent("refresh_data");
+            LocalBroadcastManager.getInstance(MainActivity.this).sendBroadcast(intent);
+            refreshListHandler.postDelayed(this, 100);
         }
     };
+
 
     /***
      * Handler to check if cars are still active on the network
@@ -374,16 +373,10 @@ public class MainActivity extends AppCompatActivity
      * Cars have to keep sending position within this interval
      */
 
+    //Thread for the recieving cars position
+    private Runnable checkCarsRunnable = new Runnable() {
 
-    Thread deleteCarThread = new Thread() {
-        @Override
         public void run() {
-            Looper.prepare();
-            final Handler deleteOldCarsHandler = new Handler();
-
-            Runnable deleteCarRunnable = new Runnable() {
-                @Override
-                public void run() {
 
                     if (!CarList.isEmpty()) {
                         for (int i = 0; i < CarList.size(); i++) {
@@ -392,12 +385,12 @@ public class MainActivity extends AppCompatActivity
                                         + " has left network");
                                 leftCarBuilder.setSound(Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.censor));
                                 notificationManager2.notify(0, leftCarBuilder.build());
-                                textToSpeech.speak("car" + CarList.get(i).getCarId()
-                                        + "has left network", TextToSpeech.QUEUE_FLUSH, null);
-                                while(textToSpeech.isSpeaking()){
-                                    ;
-                                    //Nothing here, just waiting for speech to end
-                                }
+//                                textToSpeech.speak("car" + CarList.get(i).getCarId()
+//                                        + "has left network", TextToSpeech.QUEUE_FLUSH, null);
+//                                while (textToSpeech.isSpeaking()) {
+//                                    ;
+//                                    //Nothing here, just waiting for speech to end
+//                                }
                                 CarList.remove(i);
                             }
                         }
@@ -405,27 +398,28 @@ public class MainActivity extends AppCompatActivity
                             CarList.get(i).setInicialTimer(false);
                         }
                     }
-                    deleteOldCarsHandler.postDelayed(this, 4000);
-                }
-            };
-            deleteOldCarsHandler.postDelayed(deleteCarRunnable, 4000);
-            Looper.loop();
-        }
-    };
+            deleteOldCarsHandler.postDelayed(this, 5000);
+            }
+        };
 
 
-    Runnable speakRunnable = new Runnable() {
+
+
+
+    private class SpeakRunnable implements Runnable {
         @Override
         public void run() {
+
 
             switch (option){
 
                 case 1:
-                    textToSpeech.speak("car behind", TextToSpeech.QUEUE_FLUSH, null);
-                    while(textToSpeech.isSpeaking()){
-                        ;
-                        //Nothing here, just waiting for speech to end
-                    }
+                        textToSpeech.speak("car behind", TextToSpeech.QUEUE_FLUSH, null);
+                        while (textToSpeech.isSpeaking()) {
+                            ;
+                            //Nothing here, just waiting for speech to end
+                        }
+
                     break;
                 case 2:
                     textToSpeech.speak("car on front", TextToSpeech.QUEUE_FLUSH, null);
@@ -433,17 +427,19 @@ public class MainActivity extends AppCompatActivity
                         ;
                         //Nothing here, just waiting for speech to end
                     }
+
+
                     break;
 
                 case 3:
-                    textToSpeech.speak("car on your left", TextToSpeech.QUEUE_FLUSH, null);
+                    textToSpeech.speak("car on left", TextToSpeech.QUEUE_FLUSH, null);
                     while(textToSpeech.isSpeaking()){
                         ;
                         //Nothing here, just waiting for speech to end
                     }
                     break;
                 case 4:
-                    textToSpeech.speak("car on your right", TextToSpeech.QUEUE_FLUSH, null);
+                    textToSpeech.speak("car on right", TextToSpeech.QUEUE_FLUSH, null);
                     while(textToSpeech.isSpeaking()){
                         ;
                         //Nothing here, just waiting for speech to end
@@ -495,7 +491,6 @@ public class MainActivity extends AppCompatActivity
             int begin = (int) msg.arg1;
             int end = (int) msg.arg2;
 
-
             String carID;
 
             switch (msg.what) {
@@ -519,11 +514,12 @@ public class MainActivity extends AppCompatActivity
                             String carPanic = CarsData[3];
                             String carBearing = CarsData[4];
                             String carAccuracy = CarsData[5];
+                            String carSpeed = CarsData[6];
 
                             try {
 
                                 //Assign ing temp sensors data
-                                String[] sensorData = CarsData[6].split("%");
+                                String[] sensorData = CarsData[7].split("%");
                                 frontSensor = sensorData[0];
                                 backSensor = sensorData[1];
                                 frontSensorNum = Double.parseDouble(frontSensor);
@@ -535,8 +531,6 @@ public class MainActivity extends AppCompatActivity
                                 if(!(backSensorNum == 0.0)) {
                                     backDataPercentage = ((distance - backSensorNum) / distance) * 100;
                                 }
-
-
 
                             } catch (Exception e) {
                                 System.out.println("Bad sensor data");
@@ -552,8 +546,10 @@ public class MainActivity extends AppCompatActivity
                                         CarList.get(i).setLat(lat);
                                         CarList.get(i).setCarCrashed(carPanic);
                                         CarList.get(i).setInicialTimer(true);
+                                        CarList.get(i).setCurrentSpeed(Double.parseDouble(carSpeed));
                                         CarList.get(i).setBearing(Float.parseFloat(carBearing));
                                         CarList.get(i).setAccurracy(Float.parseFloat(carAccuracy));
+                                        double currentCarSpeed = Double.parseDouble(carSpeed);
 
                                         //Compare if current car is close to my Car
                                         Location nextCarPosition = new Location("Point A");
@@ -564,6 +560,7 @@ public class MainActivity extends AppCompatActivity
                                         myCarsPosition.setLatitude(myCar.getLat());
                                         myCarsPosition.setLongitude(myCar.getLon());
 
+                                        //Getting bearing information from cars
                                         distanceBetween = myCarsPosition.distanceTo(nextCarPosition);
                                         bearingToOtherCar =  computeBearing(myCar.getLat(),myCar.getLon(),CarList.get(i).getLat(),
                                                 CarList.get(i).getLon());
@@ -576,12 +573,17 @@ public class MainActivity extends AppCompatActivity
                                             relativeBearing = 360 - relativeBearing;
                                         }
 
-                                       // statusText.setText("Relative bearing to other car: " +
-                                        //    relativeBearing);
-                                        //tvHeading.setText(String.valueOf(myCar.getBearing()));
+                                        //Average speed between cars
+                                        double otherAverageSpeed = (otherPreviousSpeed + currentCarSpeed)/2;
+                                        double myAverageSpeed = (myPreviousSpeed + myCar.getCurrentSpeed())/2;
+                                        otherPreviousSpeed =  currentCarSpeed;
+                                        myPreviousSpeed = myCar.getCurrentSpeed();
+
+
 
                                         //display alerts upon angle
-                                        if ((distanceBetween <10  && GmapFragment.myProvider.equals("gps"))) {
+                                        if (distanceBetween <10  && GmapFragment.myProvider.equals("gps")) {
+
                                             mBuilder.setContentTitle("Car " + carID + " getting close");
                                             mBuilder.setPriority(Notification.PRIORITY_MAX);
                                             mBuilder.setContentText("Distance: " +
@@ -591,10 +593,16 @@ public class MainActivity extends AppCompatActivity
                                             CarList.get(i).setDistanceBetween(distanceBetween);
                                             distanceBetween = 0;
 
-                                        }else if(distanceBetween >= 10 && distanceBetween <=40 && GmapFragment.myProvider.equals("gps")){
+                                        }else if(distanceBetween >= 10 && distanceBetween <=60
+                                                && GmapFragment.myProvider.equals("gps")
+                                                &&(CarList.get(i).getCurrentSpeed() > 1
+                                                && myCar.getCurrentSpeed() > 1)){
 
-                                            if(relativeBearing >= (145)
-                                                    && relativeBearing <= (185)){
+                                            if((relativeBearing >= (115)
+                                                    && relativeBearing <= (180))
+                                                    ||( relativeBearing >= (-179)
+                                                    && relativeBearing <= (-115))
+                                                    && myAverageSpeed < otherAverageSpeed){
 
                                                // statusText.setText("Vengo por atras tuyo");
                                                 mBuilder.setContentTitle(CarList.get(i).getCarId()
@@ -603,82 +611,109 @@ public class MainActivity extends AppCompatActivity
                                                 mBuilder.setContentText("Distance: " +
                                                         String.valueOf(String.format("%.2f",distanceBetween)) + " m");
 
-                                                option = 1;
-                                                Thread thread = new Thread(speakRunnable);
-                                                thread.setPriority(Thread.MAX_PRIORITY);
-                                                thread.start();
+                                                if(!carBehind) {
+                                                    option = 1;
+                                                    Thread thread = new Thread(speakRunnable);
+                                                    thread.start();
+
+                                                    carBehind = true;
+                                                    carFront = false;
+                                                    carRight = false;
+                                                    carLeft = false;
+                                                }
 
                                                 notificationManager.notify(0, mBuilder.build());
 
-                                            }else if(relativeBearing >= (-25) && relativeBearing <= (20)){
+                                            }else if(relativeBearing >= (-15) && relativeBearing <= (15)){
                                                // statusText.setText("Vengo por alante de ti");
                                                 mBuilder.setContentTitle(CarList.get(i).getCarId()
-                                                        + " coming by your front");
+                                                        + " is on front");
                                                 mBuilder.setPriority(Notification.PRIORITY_MAX);
                                                 mBuilder.setContentText("Distance: " +
                                                         String.valueOf(String.format("%.2f",distanceBetween)) + " m");
 
-                                                option = 2;
-                                                Thread thread = new Thread(speakRunnable);
-                                                thread.setPriority(Thread.MAX_PRIORITY);
-                                                thread.start();
+                                                if(!carFront) {
+                                                    option = 2;
+                                                    Thread thread = new Thread(speakRunnable);
+                                                    thread.start();
+
+                                                    carBehind = false;
+                                                    carFront = true;
+                                                    carRight = false;
+                                                    carLeft = false;
+                                                }
 
                                                 notificationManager.notify(0, mBuilder.build());
 
-                                            }else if(relativeBearing >= (-90) && relativeBearing <= (-50)) {
+                                            }else if(relativeBearing >= (-115) && relativeBearing <= (-15)) {
                                                // statusText.setText("Vengo por la izquiera");
                                                 mBuilder.setContentTitle(CarList.get(i).getCarId()
-                                                        + " coming from your left");
+                                                        + " is on your left");
                                                 mBuilder.setPriority(Notification.PRIORITY_MAX);
                                                 mBuilder.setContentText("Distance: " +
                                                         String.valueOf(String.format("%.2f",distanceBetween)) + " m");
-                                                textToSpeech.speak("car on your left", TextToSpeech.QUEUE_FLUSH, null);
 
-                                                option = 3;
-                                                Thread thread = new Thread(speakRunnable);
-                                                thread.setPriority(Thread.MAX_PRIORITY);
-                                                thread.start();
+                                                if(!carLeft) {
+                                                    option = 3;
+                                                    Thread thread = new Thread(speakRunnable);
+                                                    thread.start();
 
+                                                    carBehind = false;
+                                                    carFront = false;
+                                                    carRight = false;
+                                                    carLeft = true;
+                                                }
                                                 notificationManager.notify(0, mBuilder.build());
 
-                                            }else if(relativeBearing >= 50 && relativeBearing <= 90){
+                                            }else if(relativeBearing >= 15 && relativeBearing <= 115){
                                                // statusText.setText("Vengo por la derecha");
                                                 mBuilder.setContentTitle(CarList.get(i).getCarId()
                                                         + " coming from your right");
                                                 mBuilder.setPriority(Notification.PRIORITY_MAX);
                                                 mBuilder.setContentText("Distance: " +
                                                         String.valueOf(String.format("%.2f",distanceBetween)) + " m");
-                                                textToSpeech.speak("car on your right", TextToSpeech.QUEUE_FLUSH, null);
 
-                                                option = 4;
-                                                Thread thread = new Thread(speakRunnable);
-                                                thread.setPriority(Thread.MAX_PRIORITY);
-                                                thread.start();
+                                                if(!carRight) {
+                                                    option = 4;
+                                                    Thread thread = new Thread(speakRunnable);
+                                                    thread.start();
+
+                                                    carBehind = false;
+                                                    carFront = false;
+                                                    carRight = true;
+                                                    carLeft = false;
+                                                }
 
                                                 notificationManager.notify(0, mBuilder.build());
 
                                             } else{
-                                               // statusText.setText("No soy amenaza");
+
+
                                             }
 
                                             CarList.get(i).setDistanceBetween(distanceBetween);
+                                            previousDistanceBetween = distanceBetween;
                                             distanceBetween = 0;
-
 
                                         }else if(distanceBetween != 0.0){
                                             CarList.get(i).setDistanceBetween(distanceBetween);
+                                            previousDistanceBetween = distanceBetween;
                                             distanceBetween = 0;
 
+                                            carBehind = false;
+                                            carFront = false;
+                                            carRight = false;
+                                            carLeft = false;
                                         }
 
                                         break;
-                                    } else if (CarList.size() - 1 == i && carId != CARD_ID && carID.contains("Xbee")) {
+                                    } else if (CarList.size() - 1 == i && carId != CARD_ID && carID.startsWith("Xbee")) {
                                         Car newCar = new Car(lat, lon, carID, false, "Active");
                                         CarList.add(newCar);
                                         
                                     }
                                 }
-                            } else if (carID.contains("Xbee")) {
+                            } else if (carID.startsWith("Xbee")) {
                                 //Here we add a new car to the newtork
                                 Car newCar = new Car(lat, lon, carID, false, "Active");
                                 CarList.add(newCar);
@@ -702,6 +737,8 @@ public class MainActivity extends AppCompatActivity
                                 backSensor = sensorData[1];
                                 frontSensorNum = Double.parseDouble(frontSensor);
                                 backSensorNum = Double.parseDouble(backSensor);
+
+
                                 if(!(frontSensorNum == 0.0)) {
                                     frontDataPercentage = ((distance - frontSensorNum) / distance) * 100;
                                 }
@@ -709,7 +746,6 @@ public class MainActivity extends AppCompatActivity
                                     backDataPercentage = ((distance - backSensorNum) / distance) * 100;
 
                                 }
-
 
 
                             }catch(Exception e){
@@ -817,6 +853,10 @@ public class MainActivity extends AppCompatActivity
         }
     };
 
+
+
+
+
     //Thread for the recieving cars position
     private class ConnectedThread extends Thread {
 
@@ -851,7 +891,7 @@ public class MainActivity extends AppCompatActivity
             mHandler.obtainMessage(3).sendToTarget();
 
 
-            while (true && !isInterrupted()) {
+            while (!isInterrupted()) {
 
                 try {
 
@@ -866,7 +906,11 @@ public class MainActivity extends AppCompatActivity
                             }
                         }
                     }
-
+                    try {
+                        Thread.sleep(10);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                 } catch (IOException e) {
                     break;
                 }
@@ -913,7 +957,8 @@ public class MainActivity extends AppCompatActivity
                         outputStream.write(String.valueOf(myCar.getBearing()).getBytes());
                         outputStream.write(",".getBytes());
                         outputStream.write(String.valueOf(myCar.getAccurracy()).getBytes());
-
+                        outputStream.write(",".getBytes());
+                        outputStream.write(String.valueOf(myCar.getCurrentSpeed()).getBytes());
                         byte dataSend[] = outputStream.toByteArray();
                         write(dataSend);
 
@@ -923,7 +968,7 @@ public class MainActivity extends AppCompatActivity
 
                 }
                 try {
-                    Thread.sleep(500);
+                    Thread.sleep(300);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
@@ -969,7 +1014,6 @@ public class MainActivity extends AppCompatActivity
                 flagBT = true;
                 mConnectedThread = new ConnectedThread(mmSocket);
                 mSendData = new SendData(mmSocket);
-
 
                 dialog1.dismiss();
                 mHandler.obtainMessage(2).sendToTarget();
